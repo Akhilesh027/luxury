@@ -1,0 +1,195 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 4%;
+    --foreground: 40 6% 90%;
+
+    --card: 0 0% 7%;
+    --card-foreground: 40 6% 90%;
+
+    --popover: 0 0% 8%;
+    --popover-foreground: 40 6% 90%;
+
+    --primary: 42 45% 59%;
+    --primary-foreground: 0 0% 4%;
+
+    --secondary: 0 0% 12%;
+    --secondary-foreground: 40 6% 90%;
+
+    --muted: 0 0% 15%;
+    --muted-foreground: 40 6% 60%;
+
+    --accent: 42 45% 59%;
+    --accent-foreground: 0 0% 4%;
+
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 40 6% 90%;
+
+    --border: 0 0% 15%;
+    --input: 0 0% 15%;
+    --ring: 42 45% 59%;
+
+    --radius: 0.75rem;
+
+    /* Custom luxury tokens */
+    --gold: 42 45% 59%;
+    --gold-light: 42 50% 70%;
+    --gold-dark: 42 40% 45%;
+    --charcoal: 0 0% 7%;
+    --charcoal-light: 0 0% 12%;
+    --charcoal-dark: 0 0% 4%;
+
+    /* Gradients */
+    --gradient-gold: linear-gradient(135deg, hsl(42 50% 70%), hsl(42 45% 59%), hsl(42 40% 45%));
+    --gradient-dark: linear-gradient(180deg, hsl(0 0% 7%), hsl(0 0% 4%));
+    --gradient-glass: linear-gradient(135deg, hsl(0 0% 100% / 0.05), hsl(0 0% 100% / 0.02));
+
+    /* Shadows */
+    --shadow-gold: 0 0 40px hsl(42 45% 59% / 0.15);
+    --shadow-card: 0 8px 32px hsl(0 0% 0% / 0.4);
+    --shadow-elevated: 0 20px 60px hsl(0 0% 0% / 0.5);
+
+    /* Fonts */
+    --font-heading: 'Playfair Display', serif;
+    --font-body: 'DM Sans', sans-serif;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-body antialiased;
+    font-family: var(--font-body);
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading);
+  }
+}
+
+@layer utilities {
+  .font-heading {
+    font-family: var(--font-heading);
+  }
+
+  .font-body {
+    font-family: var(--font-body);
+  }
+
+  .text-gold {
+    color: hsl(var(--gold));
+  }
+
+  .bg-gold {
+    background-color: hsl(var(--gold));
+  }
+
+  .gradient-gold {
+    background: var(--gradient-gold);
+  }
+
+  .gradient-glass {
+    background: var(--gradient-glass);
+    backdrop-filter: blur(20px);
+  }
+
+  .shadow-gold {
+    box-shadow: var(--shadow-gold);
+  }
+
+  .shadow-card {
+    box-shadow: var(--shadow-card);
+  }
+
+  .shadow-elevated {
+    box-shadow: var(--shadow-elevated);
+  }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: hsl(var(--charcoal));
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--gold) / 0.3);
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--gold) / 0.5);
+  }
+}
+
+/* Animations */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes pulse-gold {
+  0%, 100% { box-shadow: 0 0 0 0 hsl(42 45% 59% / 0.4); }
+  50% { box-shadow: 0 0 0 8px hsl(42 45% 59% / 0); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, transparent, hsl(var(--gold) / 0.1), transparent);
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+}
+
+.animate-pulse-gold {
+  animation: pulse-gold 2s infinite;
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.5s ease-out forwards;
+}
+
+/* Hotspot styling */
+.hotspot {
+  @apply absolute w-4 h-4 rounded-full cursor-pointer;
+  background: hsl(var(--gold));
+  box-shadow: 0 0 0 4px hsl(var(--gold) / 0.3);
+  animation: pulse-gold 2s infinite;
+}
+
+.hotspot::before {
+  content: '';
+  @apply absolute inset-0 rounded-full;
+  background: hsl(var(--gold));
+  animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+@keyframes ping {
+  75%, 100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
