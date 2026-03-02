@@ -1,7 +1,18 @@
-import React, { createContext, useContext, useState, useCallback, ReactNode } from "react";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useEffect,
+  ReactNode,
+} from "react";
+import { toast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/auth-context";
+
+/* ================= TYPES ================= */
 
 export interface FavoriteItem {
-  id: number;
+  id: string;          // ✅ MongoDB product _id
   name: string;
   price: number;
   image: string;
@@ -10,52 +21,177 @@ export interface FavoriteItem {
 
 interface FavoritesContextType {
   favorites: FavoriteItem[];
-  addFavorite: (item: FavoriteItem) => void;
-  removeFavorite: (id: number) => void;
-  isFavorite: (id: number) => boolean;
-  toggleFavorite: (item: FavoriteItem) => void;
+  addFavorite: (item: FavoriteItem) => Promise<void>;
+  removeFavorite: (id: string) => Promise<void>;
+  isFavorite: (id: string) => boolean;
+  toggleFavorite: (item: FavoriteItem) => Promise<void>;
 }
+
+/* ================= CONTEXT ================= */
 
 const FavoritesContext = createContext<FavoritesContextType | undefined>(undefined);
 
+/* ================= CONFIG ================= */
+
+const API_BASE = "https://api.jsgallor.com/api/luxury";
+const WISHLIST_KEY = "luxury_wishlist";
+
+/* ================= HELPERS ================= */
+
+function safeParse<T>(v: string | null): T | null {
+  if (!v) return null;
+  try {
+    return JSON.parse(v) as T;
+  } catch {
+    return null;
+  }
+}
+
+/* ================= PROVIDER ================= */
+
 export const FavoritesProvider = ({ children }: { children: ReactNode }) => {
-  const [favorites, setFavorites] = useState<FavoriteItem[]>([]);
+  const { token, isAuthenticated } = useAuth();
 
-  const addFavorite = useCallback((item: FavoriteItem) => {
-    setFavorites((prev) => {
-      if (prev.find((f) => f.id === item.id)) return prev;
-      return [...prev, item];
-    });
-  }, []);
+  const [favorites, setFavorites] = useState<FavoriteItem[]>(
+    () => safeParse<FavoriteItem[]>(localStorage.getItem(WISHLIST_KEY)) || []
+  );
 
-  const removeFavorite = useCallback((id: number) => {
-    setFavorites((prev) => prev.filter((item) => item.id !== id));
-  }, []);
+  /* ---------- API helper ---------- */
+  const apiFetch = useCallback(
+    async (path: string, options: RequestInit = {}) => {
+      const res = await fetch(`${API_BASE}${path}`, {
+        ...options,
+        headers: {
+          "Content-Type": "application/json",
+          ...(options.headers || {}),
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
 
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.message || "Request failed");
+      return data;
+    },
+    [token]
+  );
+
+  /* ---------- Load wishlist from backend ---------- */
+  const loadWishlist = useCallback(async () => {
+    if (!token) return;
+
+    try {
+      const data = await apiFetch("/wishlist", { method: "GET" });
+      const list: FavoriteItem[] = Array.isArray(data?.wishlist)
+        ? data.wishlist.map((w: any) => ({
+            id: w.productId._id,
+            name: w.productId.name || w.productId.title,
+            price: w.productId.price || w.productId.newPrice || 0,
+            image: w.productId.image || w.productId.images?.[0],
+            type: w.productId.type || "",
+          }))
+        : [];
+
+      setFavorites(list);
+      localStorage.setItem(WISHLIST_KEY, JSON.stringify(list));
+    } catch {
+      /* silent fail */
+    }
+  }, [apiFetch, token]);
+
+  /* ---------- Load on login ---------- */
+  useEffect(() => {
+    if (isAuthenticated && token) {
+      loadWishlist();
+    }
+  }, [isAuthenticated, token, loadWishlist]);
+
+  /* ---------- Add ---------- */
+  const addFavorite = useCallback(
+    async (item: FavoriteItem) => {
+      if (favorites.some((f) => f.id === item.id)) return;
+
+      setFavorites((prev) => {
+        const next = [...prev, item];
+        localStorage.setItem(WISHLIST_KEY, JSON.stringify(next));
+        return next;
+      });
+
+      if (!token) return;
+
+      try {
+        await apiFetch("/wishlist", {
+          method: "POST",
+          body: JSON.stringify({ productId: item.id }),
+        });
+      } catch {
+        toast({
+          title: "Wishlist error",
+          description: "Failed to save wishlist item",
+          variant: "destructive",
+        });
+      }
+    },
+    [favorites, apiFetch, token]
+  );
+
+  /* ---------- Remove ---------- */
+  const removeFavorite = useCallback(
+    async (id: string) => {
+      setFavorites((prev) => {
+        const next = prev.filter((item) => item.id !== id);
+        localStorage.setItem(WISHLIST_KEY, JSON.stringify(next));
+        return next;
+      });
+
+      if (!token) return;
+
+      try {
+        await apiFetch(`/wishlist/${id}`, { method: "DELETE" });
+      } catch {
+        toast({
+          title: "Wishlist error",
+          description: "Failed to remove wishlist item",
+          variant: "destructive",
+        });
+      }
+    },
+    [apiFetch, token]
+  );
+
+  /* ---------- Checks ---------- */
   const isFavorite = useCallback(
-    (id: number) => favorites.some((item) => item.id === id),
+    (id: string) => favorites.some((item) => item.id === id),
     [favorites]
   );
 
+  /* ---------- Toggle ---------- */
   const toggleFavorite = useCallback(
-    (item: FavoriteItem) => {
+    async (item: FavoriteItem) => {
       if (isFavorite(item.id)) {
-        removeFavorite(item.id);
+        await removeFavorite(item.id);
       } else {
-        addFavorite(item);
+        await addFavorite(item);
       }
     },
-    [isFavorite, removeFavorite, addFavorite]
+    [isFavorite, addFavorite, removeFavorite]
   );
 
   return (
     <FavoritesContext.Provider
-      value={{ favorites, addFavorite, removeFavorite, isFavorite, toggleFavorite }}
+      value={{
+        favorites,
+        addFavorite,
+        removeFavorite,
+        isFavorite,
+        toggleFavorite,
+      }}
     >
       {children}
     </FavoritesContext.Provider>
   );
 };
+
+/* ================= HOOK ================= */
 
 export const useFavorites = () => {
   const context = useContext(FavoritesContext);

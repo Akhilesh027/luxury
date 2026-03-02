@@ -1,3 +1,12 @@
+import img1 from '../images/img1.jpeg';
+import img2 from '../images/img2.jpeg';
+import img3 from '../images/img3.jpeg';
+import img4 from '../images/img4.jpeg';
+import img5 from '../images/img5.jpeg';
+import img6 from '../images/img6.jpeg';
+import img7 from '../images/img7.jpeg';
+import img8 from '../images/img8.jpeg';
+
 export const menuData = {
   catalog: {
     items: ["Sofas & armchairs", "Beds & mattresses", "Cabinets & cupboards", "Tables & chairs"],
@@ -274,23 +283,23 @@ export const heroSlides = [
     title: "How to combine minimalism and comfort?",
     hotspots: [
       { top: "28%", left: "62%", productId: 1, productName: "Luxury Bed Frame", price: 458990 },
-      { top: "62%", left: "32%", productId: 2, productName: "Bedside Cabinet", price: 89990 },
+      { top: "62%", left: "32%", productId: 1, productName: "Bedside Cabinet", price: 89990 },
     ],
   },
   {
     image: "https://images.unsplash.com/photo-1524758631624-e2822e304c36?q=80&w=1200",
     title: "Eclecticism in the interior",
     hotspots: [
-      { top: "32%", left: "48%", productId: 3, productName: "Designer Armchair", price: 245000 },
-      { top: "67%", left: "70%", productId: 4, productName: "Modern Side Table", price: 67990 },
+      { top: "32%", left: "48%", productId: 1, productName: "Designer Armchair", price: 245000 },
+      { top: "67%", left: "70%", productId: 1, productName: "Modern Side Table", price: 67990 },
     ],
   },
   {
     image: "https://images.unsplash.com/photo-1505691938895-1758d7feb511?q=80&w=1200",
     title: "How to decorate your interior in Brutalism?",
     hotspots: [
-      { top: "37%", left: "52%", productId: 5, productName: "Industrial Pendant", price: 34990 },
-      { top: "72%", left: "28%", productId: 6, productName: "Concrete Console", price: 156990 },
+      { top: "37%", left: "52%", productId: 1, productName: "Industrial Pendant", price: 34990 },
+      { top: "72%", left: "28%", productId: 1, productName: "Concrete Console", price: 156990 },
     ],
   },
   {
@@ -298,7 +307,7 @@ export const heroSlides = [
     title: "Modern luxury living spaces",
     hotspots: [
       { top: "57%", left: "52%", productId: 1, productName: "Velvet Sofa", price: 789990 },
-      { top: "72%", left: "22%", productId: 7, productName: "Marble Coffee Table", price: 234990 },
+      { top: "72%", left: "22%", productId: 1, productName: "Marble Coffee Table", price: 234990 },
     ],
   },
 ];
@@ -345,11 +354,9 @@ export const popularCategories = [
 export const allProducts = [
   {
     id: 1,
-    image: "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?q=80&w=1200",
+    image: img1,
     images: [
-      "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?q=80&w=1200",
-      "https://images.unsplash.com/photo-1550581190-9c1c48d21d6c?q=80&w=1200",
-      "https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e?q=80&w=1200",
+      img2,img3,img4,img5,img6,img7,img8
     ],
     discount: 25,
     colors: ["#8B7355", "#4A6741", "#D4A574", "#2C3E50"],

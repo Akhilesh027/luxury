@@ -1,17 +1,73 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Heart, ShoppingBag, Minus, Plus, ChevronLeft, Check, Truck, Shield, RotateCcw } from "lucide-react";
+import {
+  Heart,
+  ShoppingBag,
+  Minus,
+  Plus,
+  Check,
+  Truck,
+  Shield,
+  RotateCcw,
+  Loader2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import { allProducts } from "@/data/siteData";
 import { useCart } from "@/contexts/CartContext";
 import { useFavorites } from "@/contexts/FavoritesContext";
+import { toast } from "@/hooks/use-toast";
+
+const API_BASE = "https://api.jsgallor.com/api/luxury";
+
+type Product = {
+  _id: string;
+  title?: string;
+  name?: string;
+  description?: string;
+
+  image?: string;
+  images?: string[];
+
+  price?: number;
+  newPrice?: number;
+  oldPrice?: number;
+  discount?: number;
+
+  colors?: string[];
+  category?: string;
+  type?: string;
+
+  inStock?: boolean;
+
+  dimensions?: {
+    width?: number;
+    depth?: number;
+    height?: number;
+  };
+};
+
+async function apiFetch(path: string, options: RequestInit = {}) {
+  const res = await fetch(`${API_BASE}${path}`, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...(options.headers || {}),
+    },
+  });
+
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(json?.message || `Request failed (${res.status})`);
+  return json;
+}
 
 const ProductDetail = () => {
-  const { id } = useParams();
-  const product = allProducts.find((p) => p.id === Number(id));
+  const { id } = useParams(); // ✅ mongo _id from URL
+  const [product, setProduct] = useState<Product | null>(null);
+  const [related, setRelated] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+
   const [selectedImage, setSelectedImage] = useState(0);
   const [selectedColor, setSelectedColor] = useState(0);
   const [quantity, setQuantity] = useState(1);
@@ -19,46 +75,121 @@ const ProductDetail = () => {
   const { addItem } = useCart();
   const { isFavorite, toggleFavorite } = useFavorites();
 
-  if (!product) {
+  const productName = product?.title || product?.name || "Product";
+  const price = Number(product?.newPrice ?? product?.price ?? 0);
+  const oldPrice = Number(product?.oldPrice ?? 0);
+  const discount = Number(product?.discount ?? 0);
+
+  const images = useMemo(() => {
+    const list = product?.images?.length ? product.images : product?.image ? [product.image] : [];
+    return list.length ? list : ["https://via.placeholder.com/900x900?text=No+Image"];
+  }, [product]);
+
+  const colors = product?.colors?.length ? product.colors : ["#000000"];
+
+  const formatPrice = (p: number) =>
+    new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency: "INR",
+      maximumFractionDigits: 0,
+    }).format(Number(p || 0));
+
+  // ✅ fetch product + related
+  useEffect(() => {
+    (async () => {
+      try {
+        setLoading(true);
+        const data = await apiFetch(`/products/${id}`, { method: "GET" });
+        const p: Product = data?.product || data; // supports {product} or direct
+        setProduct(p);
+
+        // ✅ related products by category
+        if (p?.category) {
+          const rel = await apiFetch(`/products?category=${encodeURIComponent(p.category)}&limit=8`, {
+            method: "GET",
+          });
+
+          const list: Product[] = Array.isArray(rel?.products) ? rel.products : [];
+          const filtered = list.filter((x) => String(x._id) !== String(p._id)).slice(0, 4);
+          setRelated(filtered);
+        } else {
+          setRelated([]);
+        }
+      } catch (err) {
+        toast({
+          title: "Failed to load product",
+          description: err instanceof Error ? err.message : "Try again",
+          variant: "destructive",
+        });
+        setProduct(null);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [id]);
+
+  const handleAddToCart = () => {
+    if (!product?._id) return;
+
+    addItem(
+      {
+        id: product._id, // ✅ IMPORTANT: send _id
+        name: productName,
+        price,
+        image: images[0],
+        color: colors[selectedColor] || "",
+      },
+      quantity
+    );
+  };
+
+  const handleWishlistToggle = () => {
+    if (!product?._id) return;
+
+    toggleFavorite({
+      productId: product._id, // ✅ for backend wishlist
+      id: product._id,        // ✅ keep local UI checks
+      name: productName,
+      price,
+      image: images[0],
+      type: product?.type || "",
+    } as any);
+  };
+
+  if (loading) {
     return (
       <div className="min-h-screen bg-background">
         <Header />
-        <div className="container mx-auto px-4 py-20 text-center">
-          <h1 className="text-3xl font-heading">Product not found</h1>
-          <Link to="/catalog" className="text-gold hover:underline mt-4 inline-block">
-            Back to catalog
-          </Link>
-        </div>
+        <main className="container mx-auto px-4 py-20">
+          <div className="rounded-2xl border border-border/50 bg-secondary/20 p-6 flex items-center gap-3">
+            <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">Loading product...</p>
+          </div>
+        </main>
         <Footer />
       </div>
     );
   }
 
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat("en-IN", {
-      style: "currency",
-      currency: "INR",
-      maximumFractionDigits: 0,
-    }).format(price);
-  };
-
-  const handleAddToCart = () => {
-    addItem({
-      id: product.id,
-      name: product.title,
-      price: product.newPrice,
-      image: product.image,
-      color: product.colors[selectedColor],
-    });
-  };
-
-  const relatedProducts = allProducts
-    .filter((p) => p.category === product.category && p.id !== product.id)
-    .slice(0, 4);
+  if (!product) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <main className="container mx-auto px-4 py-20 text-center">
+          <h1 className="text-3xl font-heading">Product not found</h1>
+          <Link to="/catalog" className="text-gold hover:underline mt-4 inline-block">
+            Back to catalog
+          </Link>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
       <Header />
+
       <main className="container mx-auto px-4 py-8">
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-sm text-muted-foreground mb-8">
@@ -66,7 +197,7 @@ const ProductDetail = () => {
           <span>/</span>
           <Link to="/catalog" className="hover:text-gold">Catalog</Link>
           <span>/</span>
-          <span className="text-foreground">{product.title}</span>
+          <span className="text-foreground">{productName}</span>
         </div>
 
         <div className="grid lg:grid-cols-2 gap-12">
@@ -78,38 +209,32 @@ const ProductDetail = () => {
           >
             <div className="relative aspect-square rounded-2xl overflow-hidden bg-secondary/20">
               <img
-                src={product.images[selectedImage]}
-                alt={product.title}
+                src={images[selectedImage]}
+                alt={productName}
                 className="w-full h-full object-cover"
               />
-              {product.discount > 0 && (
+
+              {discount > 0 && (
                 <span className="absolute top-4 left-4 bg-gold text-primary-foreground text-sm font-bold px-3 py-1 rounded-full">
-                  -{product.discount}%
+                  -{discount}%
                 </span>
               )}
+
               <button
-                onClick={() =>
-                  toggleFavorite({
-                    id: product.id,
-                    name: product.title,
-                    price: product.newPrice,
-                    image: product.image,
-                    type: product.type,
-                  })
-                }
+                onClick={handleWishlistToggle}
                 className={`absolute top-4 right-4 w-10 h-10 rounded-full flex items-center justify-center transition-all ${
-                  isFavorite(product.id)
+                  isFavorite(product._id)
                     ? "bg-gold text-primary-foreground"
                     : "bg-card/80 backdrop-blur-sm hover:bg-gold hover:text-primary-foreground"
                 }`}
               >
-                <Heart className={`w-5 h-5 ${isFavorite(product.id) ? "fill-current" : ""}`} />
+                <Heart className={`w-5 h-5 ${isFavorite(product._id) ? "fill-current" : ""}`} />
               </button>
             </div>
 
             {/* Thumbnails */}
             <div className="flex gap-3">
-              {product.images.map((img, idx) => (
+              {images.map((img, idx) => (
                 <button
                   key={idx}
                   onClick={() => setSelectedImage(idx)}
@@ -131,27 +256,27 @@ const ProductDetail = () => {
           >
             <div>
               <p className="text-muted-foreground text-sm uppercase tracking-wider mb-2">
-                {product.type}
+                {product.type || "Luxury"}
               </p>
-              <h1 className="text-4xl lg:text-5xl font-heading font-bold">{product.title}</h1>
+              <h1 className="text-4xl lg:text-5xl font-heading font-bold">{productName}</h1>
             </div>
 
             <div className="flex items-baseline gap-4">
-              <span className="text-3xl font-bold text-gold">{formatPrice(product.newPrice)}</span>
-              {product.oldPrice > product.newPrice && (
+              <span className="text-3xl font-bold text-gold">{formatPrice(price)}</span>
+              {oldPrice > price && (
                 <span className="text-xl text-muted-foreground line-through">
-                  {formatPrice(product.oldPrice)}
+                  {formatPrice(oldPrice)}
                 </span>
               )}
             </div>
 
-            <p className="text-muted-foreground leading-relaxed">{product.description}</p>
+            <p className="text-muted-foreground leading-relaxed">{product.description || "—"}</p>
 
             {/* Color Selection */}
             <div>
               <p className="font-medium mb-3">Color</p>
               <div className="flex gap-3">
-                {product.colors.map((color, idx) => (
+                {colors.map((color, idx) => (
                   <button
                     key={idx}
                     onClick={() => setSelectedColor(idx)}
@@ -174,15 +299,15 @@ const ProductDetail = () => {
               <div className="grid grid-cols-3 gap-4 text-sm">
                 <div>
                   <span className="text-muted-foreground">Width</span>
-                  <p className="font-medium">{product.dimensions.width} cm</p>
+                  <p className="font-medium">{product.dimensions?.width ?? "—"} cm</p>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Depth</span>
-                  <p className="font-medium">{product.dimensions.depth} cm</p>
+                  <p className="font-medium">{product.dimensions?.depth ?? "—"} cm</p>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Height</span>
-                  <p className="font-medium">{product.dimensions.height} cm</p>
+                  <p className="font-medium">{product.dimensions?.height ?? "—"} cm</p>
                 </div>
               </div>
             </div>
@@ -210,10 +335,10 @@ const ProductDetail = () => {
                 size="xl"
                 className="flex-1"
                 onClick={handleAddToCart}
-                disabled={!product.inStock}
+                disabled={product.inStock === false}
               >
                 <ShoppingBag className="w-5 h-5 mr-2" />
-                {product.inStock ? "Add to Cart" : "Out of Stock"}
+                {product.inStock === false ? "Out of Stock" : "Add to Cart"}
               </Button>
             </div>
 
@@ -235,29 +360,60 @@ const ProductDetail = () => {
           </motion.div>
         </div>
 
+        {/* Product Description Section */}
+        <section className="mt-20 border-t border-border/50 pt-12">
+          <div className="max-w-4xl">
+            <h2 className="text-2xl font-heading font-bold mb-4">Product Description</h2>
+            <p className="text-muted-foreground leading-relaxed text-base">
+              {product.description || "No description available."}
+            </p>
+
+            <div className="mt-6 grid sm:grid-cols-2 gap-4">
+              {[
+                "Crafted with premium-quality materials for long-lasting durability.",
+                "Designed to complement modern interiors with a timeless aesthetic.",
+                "Easy to maintain and built for everyday comfort.",
+                "Precision dimensions ensure a perfect fit in your space.",
+              ].map((t, i) => (
+                <div key={i} className="flex items-start gap-3">
+                  <Check className="w-5 h-5 text-gold mt-1" />
+                  <p className="text-sm text-muted-foreground">{t}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
         {/* Related Products */}
-        {relatedProducts.length > 0 && (
+        {related.length > 0 && (
           <section className="mt-20">
             <h2 className="text-2xl font-heading font-bold mb-8">Related Products</h2>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-              {relatedProducts.map((item) => (
-                <Link key={item.id} to={`/product/${item.id}`} className="group">
-                  <div className="aspect-square rounded-xl overflow-hidden bg-secondary/20 mb-3">
-                    <img
-                      src={item.image}
-                      alt={item.title}
-                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                    />
-                  </div>
-                  <p className="text-sm text-muted-foreground">{item.type}</p>
-                  <h4 className="font-medium">{item.title}</h4>
-                  <p className="text-gold font-bold">{formatPrice(item.newPrice)}</p>
-                </Link>
-              ))}
+              {related.map((item) => {
+                const name = item.title || item.name || "Product";
+                const img = item.image || item.images?.[0] || "https://via.placeholder.com/600";
+                const p = Number(item.newPrice ?? item.price ?? 0);
+
+                return (
+                  <Link key={item._id} to={`/product/${item._id}`} className="group">
+                    <div className="aspect-square rounded-xl overflow-hidden bg-secondary/20 mb-3">
+                      <img
+                        src={img}
+                        alt={name}
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      />
+                    </div>
+                    <p className="text-sm text-muted-foreground">{item.type || "Luxury"}</p>
+                    <h4 className="font-medium">{name}</h4>
+                    <p className="text-gold font-bold">{formatPrice(p)}</p>
+                  </Link>
+                );
+              })}
             </div>
           </section>
         )}
       </main>
+
       <Footer />
     </div>
   );

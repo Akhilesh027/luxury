@@ -20,7 +20,7 @@ const MegaMenu = forwardRef<HTMLDivElement, MegaMenuProps>(({ data, onClose }, r
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
       transition={{ duration: 0.2 }}
-      className="absolute left-0 right-0 bg-card/98 backdrop-blur-xl border-b border-border/50 shadow-elevated z-40"
+className="absolute left-0 right-0 bg-card border-b border-border shadow-elevated z-40"
       onMouseLeave={onClose}
     >
       <div className="container mx-auto px-4 py-8">
