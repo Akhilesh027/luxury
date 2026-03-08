@@ -17,25 +17,20 @@ type Product = {
   name?: string;
   description?: string;
   type?: string;
-
-  // your backend fields
-  category?: string;     // parent slug (ex: dining)
-  subcategory?: string;  // child slug (ex: chair)  ✅ add this if backend has it
+  category?: string;
+  subcategory?: string;
   room?: string;
   material?: string;
   style?: string;
-
   image?: string;
   images?: string[];
   colors?: string[];
-
   oldPrice?: number;
   newPrice?: number;
   price?: number;
   discount?: number;
-
-  status?: string; // approved
-  tier?: string; // luxury
+  status?: string;
+  tier?: string;
 };
 
 const getToken = () => localStorage.getItem(TOKEN_KEY);
@@ -59,14 +54,12 @@ const Catalog = () => {
 
   const { isFavorite, toggleFavorite } = useFavorites();
 
-  // ✅ keep URL query filters (room/material/style/price)
   const activeRoom = searchParams.get("room");
   const activeMaterial = searchParams.get("material");
   const activeStyle = searchParams.get("style");
   const activePriceMin = searchParams.get("priceMin");
   const activePriceMax = searchParams.get("priceMax");
 
-  // ✅ route-based filters
   const activeCategorySlug = (categorySlug || "").trim() || null;
   const activeSubSlug = (subCategorySlug || "").trim() || null;
 
@@ -74,7 +67,6 @@ const Catalog = () => {
   const [loading, setLoading] = useState(true);
   const [errMsg, setErrMsg] = useState<string | null>(null);
 
-  // ✅ Fetch products from backend (approved + luxury)
   useEffect(() => {
     let mounted = true;
 
@@ -103,8 +95,9 @@ const Catalog = () => {
           ? json
           : [];
 
-        // extra safety filter
-        const filtered = list.filter((p) => norm(p.status) === "approved" && norm(p.tier) === "luxury");
+        const filtered = list.filter(
+          (p) => norm(p.status) === "approved" && norm(p.tier) === "luxury"
+        );
 
         if (mounted) setProducts(filtered);
       } catch (e) {
@@ -122,8 +115,6 @@ const Catalog = () => {
     };
   }, []);
 
-  // ✅ Sync route params into query params (optional, but keeps URL filters consistent)
-  // You can remove this if you don’t want category/subcategory in query at all.
   useEffect(() => {
     const newParams = new URLSearchParams(searchParams);
 
@@ -133,28 +124,23 @@ const Catalog = () => {
     if (activeSubSlug) newParams.set("subcategory", activeSubSlug);
     else newParams.delete("subcategory");
 
-    // prevent infinite loop: only update if changed
     const before = searchParams.toString();
     const after = newParams.toString();
     if (before !== after) setSearchParams(newParams, { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeCategorySlug, activeSubSlug]);
 
-  // ✅ Filter products (route params + query params)
   const filteredProducts = useMemo(() => {
     let result = [...products];
 
-    // category from route
     if (activeCategorySlug) {
       result = result.filter((p) => norm(p.category) === norm(activeCategorySlug));
     }
 
-    // subcategory from route (if your product has "subcategory")
     if (activeSubSlug) {
       result = result.filter((p) => norm((p as any).subcategory) === norm(activeSubSlug));
     }
 
-    // other filters
     if (activeRoom) result = result.filter((p) => norm(p.room) === norm(activeRoom));
     if (activeMaterial) result = result.filter((p) => norm(p.material) === norm(activeMaterial));
     if (activeStyle) result = result.filter((p) => norm(p.style) === norm(activeStyle));
@@ -168,7 +154,6 @@ const Catalog = () => {
       });
     }
 
-    // Sort
     switch (sortBy) {
       case "price-asc":
         result.sort((a, b) => pickNewPrice(a) - pickNewPrice(b));
@@ -180,12 +165,21 @@ const Catalog = () => {
         result.sort((a, b) => (b.discount || 0) - (a.discount || 0));
         break;
       default:
-        // featured: keep backend order as-is
         break;
     }
 
     return result;
-  }, [products, activeCategorySlug, activeSubSlug, activeRoom, activeMaterial, activeStyle, activePriceMin, activePriceMax, sortBy]);
+  }, [
+    products,
+    activeCategorySlug,
+    activeSubSlug,
+    activeRoom,
+    activeMaterial,
+    activeStyle,
+    activePriceMin,
+    activePriceMax,
+    sortBy,
+  ]);
 
   const setFilter = (key: string, value: string | null) => {
     const newParams = new URLSearchParams(searchParams);
@@ -195,7 +189,6 @@ const Catalog = () => {
   };
 
   const clearFilters = () => {
-    // keep route-based filters, clear other query filters
     const newParams = new URLSearchParams();
     if (activeCategorySlug) newParams.set("category", activeCategorySlug);
     if (activeSubSlug) newParams.set("subcategory", activeSubSlug);
@@ -210,43 +203,67 @@ const Catalog = () => {
     }).format(price);
 
   const hasActiveFilters =
-    !!activeCategorySlug || !!activeSubSlug || !!activeRoom || !!activeMaterial || !!activeStyle || !!activePriceMin;
+    !!activeCategorySlug ||
+    !!activeSubSlug ||
+    !!activeRoom ||
+    !!activeMaterial ||
+    !!activeStyle ||
+    !!activePriceMin;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background overflow-x-hidden">
       <Header />
 
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl lg:text-4xl font-heading font-bold">
+        <div className="mb-6 sm:mb-8 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="min-w-0">
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-heading font-bold break-words">
               {activeCategorySlug ? `Catalog • ${activeCategorySlug}` : "Catalog"}
               {activeSubSlug ? ` • ${activeSubSlug}` : ""}
             </h1>
-            <p className="text-muted-foreground mt-1">
+            <p className="text-sm sm:text-base text-muted-foreground mt-1">
               {loading ? "Loading..." : `${filteredProducts.length} products`}
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
-            <Button variant="icon" size="icon" onClick={() => setViewMode("grid")} className={viewMode === "grid" ? "text-gold" : ""}>
+          <div className="flex items-center gap-2 sm:gap-3 self-start lg:self-auto">
+            <Button
+              variant="icon"
+              size="icon"
+              onClick={() => setViewMode("grid")}
+              className={viewMode === "grid" ? "text-gold" : ""}
+            >
               <Grid className="w-5 h-5" />
             </Button>
-            <Button variant="icon" size="icon" onClick={() => setViewMode("list")} className={viewMode === "list" ? "text-gold" : ""}>
+
+            <Button
+              variant="icon"
+              size="icon"
+              onClick={() => setViewMode("list")}
+              className={viewMode === "list" ? "text-gold" : ""}
+            >
               <List className="w-5 h-5" />
             </Button>
 
-            <Button variant="outline" onClick={() => setShowFilters(!showFilters)} className="lg:hidden">
+            <Button
+              variant="outline"
+              onClick={() => setShowFilters(!showFilters)}
+              className="lg:hidden"
+            >
               <Filter className="w-4 h-4 mr-2" />
               Filters
             </Button>
           </div>
         </div>
 
-        <div className="flex gap-8">
+        <div className="flex gap-6 lg:gap-8">
           {/* Filters Sidebar */}
-          <aside className={`${showFilters ? "fixed inset-0 z-50 bg-background p-6" : "hidden"} lg:block lg:relative lg:w-64 lg:flex-shrink-0`}>
+          <aside
+            className={`${
+              showFilters ? "fixed inset-0 z-50 bg-background p-4 sm:p-6 overflow-y-auto" : "hidden"
+            } lg:block lg:relative lg:w-64 lg:flex-shrink-0`}
+          >
             <div className="flex items-center justify-between mb-6 lg:hidden">
               <h2 className="text-xl font-heading font-bold">Filters</h2>
               <Button variant="icon" size="icon" onClick={() => setShowFilters(false)}>
@@ -254,98 +271,106 @@ const Catalog = () => {
               </Button>
             </div>
 
-            {hasActiveFilters && (
-              <Button variant="ghost" onClick={clearFilters} className="mb-6 text-gold">
-                Clear all filters
-              </Button>
-            )}
+            <div className="lg:sticky lg:top-24">
+              {hasActiveFilters && (
+                <Button variant="ghost" onClick={clearFilters} className="mb-6 text-gold">
+                  Clear all filters
+                </Button>
+              )}
 
-            {/* ✅ Category info (route based) */}
-            {(activeCategorySlug || activeSubSlug) && (
-              <div className="rounded-xl border border-border/40 bg-secondary/20 p-4 mb-6">
-                <p className="text-sm text-muted-foreground">Browsing</p>
-                <p className="font-semibold mt-1">
-                  {activeCategorySlug || "All"} {activeSubSlug ? `→ ${activeSubSlug}` : ""}
-                </p>
-                <Link to="/catalog" className="text-sm text-gold hover:underline mt-2 inline-block">
-                  Go to all products
-                </Link>
-              </div>
-            )}
+              {(activeCategorySlug || activeSubSlug) && (
+                <div className="rounded-xl border border-border/40 bg-secondary/20 p-4 mb-6">
+                  <p className="text-sm text-muted-foreground">Browsing</p>
+                  <p className="font-semibold mt-1 break-words">
+                    {activeCategorySlug || "All"} {activeSubSlug ? `→ ${activeSubSlug}` : ""}
+                  </p>
+                  <Link
+                    to="/catalog"
+                    className="text-sm text-gold hover:underline mt-2 inline-block"
+                  >
+                    Go to all products
+                  </Link>
+                </div>
+              )}
 
-            {/* Room Filter */}
-            <FilterSection title="Room">
-              {filterOptions.rooms.map((room) => (
-                <FilterItem
-                  key={room.value}
-                  label={room.label}
-                  active={activeRoom === room.value}
-                  onClick={() => setFilter("room", activeRoom === room.value ? null : room.value)}
-                />
-              ))}
-            </FilterSection>
+              <FilterSection title="Room">
+                {filterOptions.rooms.map((room) => (
+                  <FilterItem
+                    key={room.value}
+                    label={room.label}
+                    active={activeRoom === room.value}
+                    onClick={() => setFilter("room", activeRoom === room.value ? null : room.value)}
+                  />
+                ))}
+              </FilterSection>
 
-            {/* Material Filter */}
-            <FilterSection title="Material">
-              {filterOptions.materials.map((mat) => (
-                <FilterItem
-                  key={mat.value}
-                  label={mat.label}
-                  active={activeMaterial === mat.value}
-                  onClick={() => setFilter("material", activeMaterial === mat.value ? null : mat.value)}
-                />
-              ))}
-            </FilterSection>
-
-            {/* Style Filter */}
-            <FilterSection title="Style">
-              {filterOptions.styles.map((style) => (
-                <FilterItem
-                  key={style.value}
-                  label={style.label}
-                  active={activeStyle === style.value}
-                  onClick={() => setFilter("style", activeStyle === style.value ? null : style.value)}
-                />
-              ))}
-            </FilterSection>
-
-            {/* Price Filter */}
-            <FilterSection title="Price Range">
-              {filterOptions.priceRanges.map((range, idx) => (
-                <FilterItem
-                  key={idx}
-                  label={range.label}
-                  active={activePriceMin === String(range.min)}
-                  onClick={() => {
-                    if (activePriceMin === String(range.min)) {
-                      setFilter("priceMin", null);
-                      setFilter("priceMax", null);
-                    } else {
-                      const newParams = new URLSearchParams(searchParams);
-                      newParams.set("priceMin", String(range.min));
-                      newParams.set("priceMax", String(range.max));
-                      setSearchParams(newParams);
+              <FilterSection title="Material">
+                {filterOptions.materials.map((mat) => (
+                  <FilterItem
+                    key={mat.value}
+                    label={mat.label}
+                    active={activeMaterial === mat.value}
+                    onClick={() =>
+                      setFilter("material", activeMaterial === mat.value ? null : mat.value)
                     }
-                  }}
-                />
-              ))}
-            </FilterSection>
+                  />
+                ))}
+              </FilterSection>
 
-            <Button variant="gold" className="w-full mt-6 lg:hidden" onClick={() => setShowFilters(false)}>
-              Apply Filters
-            </Button>
+              <FilterSection title="Style">
+                {filterOptions.styles.map((style) => (
+                  <FilterItem
+                    key={style.value}
+                    label={style.label}
+                    active={activeStyle === style.value}
+                    onClick={() =>
+                      setFilter("style", activeStyle === style.value ? null : style.value)
+                    }
+                  />
+                ))}
+              </FilterSection>
+
+              <FilterSection title="Price Range">
+                {filterOptions.priceRanges.map((range, idx) => (
+                  <FilterItem
+                    key={idx}
+                    label={range.label}
+                    active={activePriceMin === String(range.min)}
+                    onClick={() => {
+                      if (activePriceMin === String(range.min)) {
+                        setFilter("priceMin", null);
+                        setFilter("priceMax", null);
+                      } else {
+                        const newParams = new URLSearchParams(searchParams);
+                        newParams.set("priceMin", String(range.min));
+                        newParams.set("priceMax", String(range.max));
+                        setSearchParams(newParams);
+                      }
+                    }}
+                  />
+                ))}
+              </FilterSection>
+
+              <Button
+                variant="gold"
+                className="w-full mt-6 lg:hidden"
+                onClick={() => setShowFilters(false)}
+              >
+                Apply Filters
+              </Button>
+            </div>
           </aside>
 
           {/* Product Grid */}
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             {/* Sort */}
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-2">
+            <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-wrap items-center gap-2">
                 <span className="text-sm text-muted-foreground">Sort by:</span>
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value)}
-                  className="bg-secondary/30 border border-border/50 rounded-lg px-3 py-2 text-sm outline-none focus:border-gold"
+                  className="min-w-[180px] bg-secondary/30 border border-border/50 rounded-lg px-3 py-2 text-sm outline-none focus:border-gold"
                 >
                   <option value="featured">Featured</option>
                   <option value="price-asc">Price: Low to High</option>
@@ -357,32 +382,45 @@ const Catalog = () => {
 
             {/* Loading / Error / Empty */}
             {loading ? (
-              <div className="rounded-xl border border-border/40 bg-secondary/20 p-6 flex items-center gap-3">
+              <div className="rounded-xl border border-border/40 bg-secondary/20 p-5 sm:p-6 flex items-center gap-3">
                 <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-                <p className="text-sm text-muted-foreground">Loading approved luxury products...</p>
+                <p className="text-sm text-muted-foreground">
+                  Loading approved luxury products...
+                </p>
               </div>
             ) : errMsg ? (
-              <div className="rounded-xl border border-border/40 bg-secondary/20 p-6">
+              <div className="rounded-xl border border-border/40 bg-secondary/20 p-5 sm:p-6">
                 <p className="text-sm text-muted-foreground">{errMsg}</p>
-                <Button variant="gold-outline" className="mt-4" onClick={() => window.location.reload()}>
+                <Button
+                  variant="gold-outline"
+                  className="mt-4"
+                  onClick={() => window.location.reload()}
+                >
                   Retry
                 </Button>
               </div>
             ) : filteredProducts.length === 0 ? (
-              <div className="text-center py-20">
-                <p className="text-xl text-muted-foreground">No products found</p>
+              <div className="text-center py-16 sm:py-20">
+                <p className="text-lg sm:text-xl text-muted-foreground">No products found</p>
                 <Button variant="gold-outline" onClick={clearFilters} className="mt-4">
                   Clear Filters
                 </Button>
               </div>
             ) : (
-              <div className={`grid gap-6 ${viewMode === "grid" ? "grid-cols-2 lg:grid-cols-3" : "grid-cols-1"}`}>
+              <div
+                className={`grid gap-4 sm:gap-6 ${
+                  viewMode === "grid"
+                    ? "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3"
+                    : "grid-cols-1"
+                }`}
+              >
                 {filteredProducts.map((product, index) => {
                   const id = product._id;
                   const title = pickTitle(product);
                   const img = pickImage(product);
                   const newPrice = pickNewPrice(product);
-                  const oldPrice = typeof product.oldPrice === "number" ? product.oldPrice : undefined;
+                  const oldPrice =
+                    typeof product.oldPrice === "number" ? product.oldPrice : undefined;
 
                   return (
                     <motion.div
@@ -390,70 +428,86 @@ const Catalog = () => {
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.03 }}
-                      className={`group relative ${viewMode === "list" ? "flex gap-6" : ""}`}
+                      className={`group relative ${
+                        viewMode === "list"
+                          ? "flex flex-col sm:flex-row gap-4 sm:gap-6"
+                          : ""
+                      }`}
                     >
-                      <Link
-                        to={`/product/${id}`}
-                        className={`relative overflow-hidden rounded-xl bg-secondary/20 block ${
-                          viewMode === "list" ? "w-48 h-48 flex-shrink-0" : "aspect-square"
-                        }`}
-                      >
-                        {img ? (
-                          <img
-                            src={img}
-                            alt={title}
-                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                            loading="lazy"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-sm text-muted-foreground">
-                            No image
-                          </div>
-                        )}
+                      <div className="relative">
+                        <Link
+                          to={`/product/${id}`}
+                          className={`relative overflow-hidden rounded-xl bg-secondary/20 block ${
+                            viewMode === "list"
+                              ? "w-full sm:w-48 h-56 sm:h-48 sm:flex-shrink-0"
+                              : "aspect-square"
+                          }`}
+                        >
+                          {img ? (
+                            <img
+                              src={img}
+                              alt={title}
+                              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                              loading="lazy"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-sm text-muted-foreground">
+                              No image
+                            </div>
+                          )}
 
-                        {(product.discount || 0) > 0 && (
-                          <span className="absolute top-3 left-3 bg-gold text-primary-foreground text-xs font-bold px-2 py-1 rounded-full">
-                            -{product.discount}%
-                          </span>
-                        )}
-                      </Link>
-
-                      <button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          toggleFavorite({
-                            id,
-                            name: title,
-                            price: newPrice,
-                            image: img,
-                            type: product.type || "Luxury",
-                          } as any);
-                        }}
-                        className={`absolute top-3 right-3 w-9 h-9 rounded-full flex items-center justify-center transition-all z-10 ${
-                          isFavorite(id as any)
-                            ? "bg-gold text-primary-foreground"
-                            : "bg-card/80 backdrop-blur-sm hover:bg-gold hover:text-primary-foreground"
-                        }`}
-                      >
-                        <Heart className={`w-4 h-4 ${isFavorite(id as any) ? "fill-current" : ""}`} />
-                      </button>
-
-                      <div className={viewMode === "list" ? "flex-1 py-2" : "mt-4"}>
-                        <p className="text-sm text-muted-foreground">{product.type || "Luxury"}</p>
-
-                        <Link to={`/product/${id}`}>
-                          <h3 className="font-semibold hover:text-gold transition-colors">{title}</h3>
+                          {(product.discount || 0) > 0 && (
+                            <span className="absolute top-3 left-3 bg-gold text-primary-foreground text-xs font-bold px-2 py-1 rounded-full">
+                              -{product.discount}%
+                            </span>
+                          )}
                         </Link>
 
-                        <div className="flex items-center gap-3 mt-1">
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            toggleFavorite({
+                              id,
+                              name: title,
+                              price: newPrice,
+                              image: img,
+                              type: product.type || "Luxury",
+                            } as any);
+                          }}
+                          className={`absolute top-3 right-3 w-9 h-9 rounded-full flex items-center justify-center transition-all z-10 ${
+                            isFavorite(id as any)
+                              ? "bg-gold text-primary-foreground"
+                              : "bg-card/80 backdrop-blur-sm hover:bg-gold hover:text-primary-foreground"
+                          }`}
+                        >
+                          <Heart
+                            className={`w-4 h-4 ${isFavorite(id as any) ? "fill-current" : ""}`}
+                          />
+                        </button>
+                      </div>
+
+                      <div className={viewMode === "list" ? "flex-1 py-1 sm:py-2 min-w-0" : "mt-4"}>
+                        <p className="text-sm text-muted-foreground">
+                          {product.type || "Luxury"}
+                        </p>
+
+                        <Link to={`/product/${id}`}>
+                          <h3 className="font-semibold hover:text-gold transition-colors break-words line-clamp-2">
+                            {title}
+                          </h3>
+                        </Link>
+
+                        <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-1">
                           {typeof oldPrice === "number" && oldPrice > newPrice && (
-                            <span className="text-muted-foreground line-through text-sm">{formatPrice(oldPrice)}</span>
+                            <span className="text-muted-foreground line-through text-sm">
+                              {formatPrice(oldPrice)}
+                            </span>
                           )}
                           <span className="text-gold font-bold">{formatPrice(newPrice)}</span>
                         </div>
 
                         {viewMode === "list" && (
-                          <p className="text-sm text-muted-foreground mt-2 line-clamp-2">
+                          <p className="text-sm text-muted-foreground mt-2 line-clamp-3">
                             {product.description || "—"}
                           </p>
                         )}
@@ -472,13 +526,22 @@ const Catalog = () => {
   );
 };
 
-const FilterSection = ({ title, children }: { title: string; children: React.ReactNode }) => {
+const FilterSection = ({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) => {
   const [isOpen, setIsOpen] = useState(true);
 
   return (
     <div className="border-b border-border/50 pb-4 mb-4">
-      <button onClick={() => setIsOpen(!isOpen)} className="flex items-center justify-between w-full py-2 font-medium">
-        {title}
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center justify-between w-full py-2 font-medium text-left"
+      >
+        <span>{title}</span>
         <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? "rotate-180" : ""}`} />
       </button>
       {isOpen && <div className="mt-2 space-y-2">{children}</div>}
@@ -486,7 +549,15 @@ const FilterSection = ({ title, children }: { title: string; children: React.Rea
   );
 };
 
-const FilterItem = ({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) => (
+const FilterItem = ({
+  label,
+  active,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) => (
   <button
     onClick={onClick}
     className={`block w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${

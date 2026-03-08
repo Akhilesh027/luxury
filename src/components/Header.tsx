@@ -185,31 +185,34 @@ const Header = () => {
         {/* Top Row */}
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16 lg:h-20">
-            <div className="flex items-center gap-8">
-              <img src={logo} alt="JSGALORE" className="h-8 lg:h-10 object-contain" />
+          <div className="flex items-center gap-8">
+  <img src={logo} alt="JSGALORE" className="h-8 lg:h-10 object-contain" />
 
-              <a href="/" className="text-2xl lg:text-3xl font-heading font-bold text-gold tracking-wider">
-                JS GALLOR
-              </a>
+  <a
+    href="/"
+    className="hidden sm:block text-2xl lg:text-3xl font-heading font-bold text-gold tracking-wider"
+  >
+    JS GALLOR
+  </a>
 
-              <nav className="hidden lg:flex items-center gap-1">
-                {(["catalog", "concepts", "rooms"] as MenuKey[]).map((menu) => (
-                  <Button
-                    key={menu}
-                    variant="nav"
-                    className={`px-4 py-2 capitalize ${activeMenu === menu && showSecondRow ? "text-gold" : ""}`}
-                    onClick={() => handleMenuClick(menu)}
-                  >
-                    {menu === "rooms" ? "Select a room" : menu}
-                    <ChevronDown
-                      className={`ml-1 h-4 w-4 transition-transform duration-200 ${
-                        activeMenu === menu && showSecondRow ? "rotate-180" : ""
-                      }`}
-                    />
-                  </Button>
-                ))}
-              </nav>
-            </div>
+  <nav className="hidden lg:flex items-center gap-1">
+    {(["catalog", "concepts", "rooms"] as MenuKey[]).map((menu) => (
+      <Button
+        key={menu}
+        variant="nav"
+        className={`px-4 py-2 capitalize ${activeMenu === menu && showSecondRow ? "text-gold" : ""}`}
+        onClick={() => handleMenuClick(menu)}
+      >
+        {menu === "rooms" ? "Select a room" : menu}
+        <ChevronDown
+          className={`ml-1 h-4 w-4 transition-transform duration-200 ${
+            activeMenu === menu && showSecondRow ? "rotate-180" : ""
+          }`}
+        />
+      </Button>
+    ))}
+  </nav>
+</div>
 
             <div className="flex items-center gap-3">
               <div className="hidden md:flex items-center gap-2 bg-secondary/50 rounded-full px-4 py-2 border border-border/50">
