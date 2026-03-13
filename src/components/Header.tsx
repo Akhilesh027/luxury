@@ -1,3 +1,4 @@
+// Header.tsx – full updated version with location storage
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { Search, MapPin, User, Heart, ShoppingBag, Menu, ChevronDown } from "lucide-react";
@@ -49,8 +50,7 @@ async function apiGet<T>(url: string, signal?: AbortSignal): Promise<T> {
   const res = await fetch(url, {
     method: "GET",
     headers: { "Content-Type": "application/json" },
-    // ✅ IMPORTANT: remove credentials to avoid strict CORS
-    // credentials: "include",
+    // credentials omitted for CORS
     signal,
   });
 
@@ -66,7 +66,8 @@ function buildMegaMenuData(parent: CategoryItem, children: CategoryItem[]) {
         heading: "Sub Categories",
         links: children.map((c) => ({
           label: c.name,
-href: `/catalog/${parent.slug}/${c.slug}`        })),
+          href: `/catalog/${parent.slug}/${c.slug}`,
+        })),
       },
     ],
   };
@@ -81,6 +82,9 @@ const Header = () => {
   const [userOpen, setUserOpen] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+
+  // ✅ location state
+  const [userLocation, setUserLocation] = useState<{ city: string; pin: string } | null>(null);
 
   const { totalItems } = useCart();
   const { favorites } = useFavorites();
@@ -181,64 +185,77 @@ const Header = () => {
 
   return (
     <>
-      <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-md border-b border-border/50">
+      <header className="sticky top-0 z-50 backdrop-blur-md border-b border-black/20 bg-gradient-to-r from-[#7a5a1e] via-[#d4af37] to-[#7a5a1e] shadow-lg text-white">
         {/* Top Row */}
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16 lg:h-20">
-          <div className="flex items-center gap-8">
-  <img src={logo} alt="JSGALORE" className="h-8 lg:h-10 object-contain" />
+            {/* Logo + Menu */}
+            <div className="flex items-center gap-8">
+              <img src={logo} alt="JSGALORE" className="h-8 lg:h-10 object-contain" />
+              <a
+                href="/"
+                className="hidden sm:block text-2xl lg:text-3xl font-heading font-bold tracking-wider text-white"
+              >
+                JS GALLOR
+              </a>
 
-  <a
-    href="/"
-    className="hidden sm:block text-2xl lg:text-3xl font-heading font-bold text-gold tracking-wider"
-  >
-    JS GALLOR
-  </a>
+              <nav className="hidden lg:flex items-center gap-1">
+                {(["catalog", "concepts", "rooms"] as MenuKey[]).map((menu) => (
+                  <Button
+                    key={menu}
+                    variant="nav"
+                    className={`px-4 py-2 capitalize text-white hover:text-yellow-200 ${
+                      activeMenu === menu && showSecondRow ? "text-yellow-200" : ""
+                    }`}
+                    onClick={() => handleMenuClick(menu)}
+                  >
+                    {menu === "rooms" ? "Select a room" : menu}
+                    <ChevronDown
+                      className={`ml-1 h-4 w-4 transition-transform duration-200 ${
+                        activeMenu === menu && showSecondRow ? "rotate-180" : ""
+                      }`}
+                    />
+                  </Button>
+                ))}
+              </nav>
+            </div>
 
-  <nav className="hidden lg:flex items-center gap-1">
-    {(["catalog", "concepts", "rooms"] as MenuKey[]).map((menu) => (
-      <Button
-        key={menu}
-        variant="nav"
-        className={`px-4 py-2 capitalize ${activeMenu === menu && showSecondRow ? "text-gold" : ""}`}
-        onClick={() => handleMenuClick(menu)}
-      >
-        {menu === "rooms" ? "Select a room" : menu}
-        <ChevronDown
-          className={`ml-1 h-4 w-4 transition-transform duration-200 ${
-            activeMenu === menu && showSecondRow ? "rotate-180" : ""
-          }`}
-        />
-      </Button>
-    ))}
-  </nav>
-</div>
-
+            {/* Right Icons */}
             <div className="flex items-center gap-3">
-              <div className="hidden md:flex items-center gap-2 bg-secondary/50 rounded-full px-4 py-2 border border-border/50">
-                <Search className="h-4 w-4 text-muted-foreground" />
+              {/* Search */}
+              <div className="hidden md:flex items-center gap-2 bg-white/10 rounded-full px-4 py-2 border border-white/20">
+                <Search className="h-4 w-4 text-white" />
                 <input
                   type="search"
                   placeholder="I want to find..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="bg-transparent border-none outline-none text-sm w-40 lg:w-56 placeholder:text-muted-foreground"
+                  className="bg-transparent border-none outline-none text-sm w-40 lg:w-56 placeholder:text-white/70 text-white"
                 />
               </div>
 
-              <Button
-                variant="icon"
-                size="icon"
-                onClick={() => {
-                  setLocationOpen(!locationOpen);
-                  setUserOpen(false);
-                  setCartOpen(false);
-                }}
-                className={locationOpen ? "text-gold" : ""}
-              >
-                <MapPin className="h-5 w-5" />
-              </Button>
+              {/* Location with badge */}
+              <div className="relative">
+                <Button
+                  variant="icon"
+                  size="icon"
+                  onClick={() => {
+                    setLocationOpen(!locationOpen);
+                    setUserOpen(false);
+                    setCartOpen(false);
+                  }}
+                  className={`${locationOpen ? "text-yellow-200" : "text-white"} hover:text-yellow-200`}
+                >
+                  <MapPin className="h-5 w-5" />
+                </Button>
+                {userLocation && (
+                  <span className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 text-[8px] bg-black text-white px-1 rounded-full whitespace-nowrap">
+                    {userLocation.city || userLocation.pin}
+                  </span>
+                )}
+              </div>
 
+              {/* User */}
               <Button
                 variant="icon"
                 size="icon"
@@ -247,22 +264,24 @@ const Header = () => {
                   setLocationOpen(false);
                   setCartOpen(false);
                 }}
-                className={userOpen ? "text-gold" : ""}
+                className={`${userOpen ? "text-yellow-200" : "text-white"} hover:text-yellow-200`}
               >
                 <User className="h-5 w-5" />
               </Button>
 
+              {/* Favorites */}
               <Link to="/favorites">
-                <Button variant="icon" size="icon" className="hidden sm:flex relative">
+                <Button variant="icon" size="icon" className="hidden sm:flex relative text-white hover:text-yellow-200">
                   <Heart className="h-5 w-5" />
                   {favorites.length > 0 && (
-                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-gold text-primary-foreground text-[10px] font-bold rounded-full flex items-center justify-center">
+                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-black text-white text-[10px] font-bold rounded-full flex items-center justify-center">
                       {favorites.length}
                     </span>
                   )}
                 </Button>
               </Link>
 
+              {/* Cart */}
               <Button
                 variant="icon"
                 size="icon"
@@ -271,17 +290,23 @@ const Header = () => {
                   setLocationOpen(false);
                   setUserOpen(false);
                 }}
-                className={`relative ${cartOpen ? "text-gold" : ""}`}
+                className={`relative ${cartOpen ? "text-yellow-200" : "text-white"} hover:text-yellow-200`}
               >
                 <ShoppingBag className="h-5 w-5" />
                 {totalItems > 0 && (
-                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-gold text-primary-foreground text-[10px] font-bold rounded-full flex items-center justify-center">
+                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-black text-white text-[10px] font-bold rounded-full flex items-center justify-center">
                     {totalItems > 9 ? "9+" : totalItems}
                   </span>
                 )}
               </Button>
 
-              <Button variant="icon" size="icon" className="lg:hidden" onClick={() => setMobileOpen(true)}>
+              {/* Mobile Menu */}
+              <Button
+                variant="icon"
+                size="icon"
+                className="lg:hidden text-white hover:text-yellow-200"
+                onClick={() => setMobileOpen(true)}
+              >
                 <Menu className="h-5 w-5" />
               </Button>
             </div>
@@ -296,20 +321,19 @@ const Header = () => {
               animate={{ height: "auto", opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="hidden lg:block border-t border-border/30 overflow-hidden"
+              className="hidden lg:block border-t border-white/20 overflow-hidden"
             >
               <div className="container mx-auto px-4">
-                <nav className="flex items-center gap-6 py-3">
-                  {loading && <span className="text-sm text-muted-foreground">Loading...</span>}
-                  {err && <span className="text-sm text-red-400">{err}</span>}
-
+                <nav className="flex items-center gap-6 py-3 text-white">
+                  {loading && <span className="text-sm text-white/70">Loading...</span>}
+                  {err && <span className="text-sm text-red-300">{err}</span>}
                   {!loading &&
                     !err &&
                     parents.map((p) => (
                       <button
                         key={p.id}
-                        className={`text-sm transition-colors duration-200 hover:text-gold ${
-                          hoveredParentId === p.id ? "text-gold" : "text-muted-foreground"
+                        className={`text-sm transition-colors duration-200 hover:text-yellow-200 ${
+                          hoveredParentId === p.id ? "text-yellow-200" : "text-white"
                         }`}
                         onMouseEnter={() => setHoveredParentId(p.id)}
                       >
@@ -331,11 +355,25 @@ const Header = () => {
       </header>
 
       {/* Panels */}
-      <AnimatePresence>{locationOpen && <LocationPanel onClose={() => setLocationOpen(false)} />}</AnimatePresence>
+      <AnimatePresence>
+        {locationOpen && (
+          <LocationPanel
+            onClose={() => setLocationOpen(false)}
+            onLocationSelect={(city, pin) => setUserLocation({ city, pin })}
+          />
+        )}
+      </AnimatePresence>
       <AnimatePresence>{userOpen && <UserPanel onClose={() => setUserOpen(false)} />}</AnimatePresence>
       <AnimatePresence>{cartOpen && <CartPanel onClose={() => setCartOpen(false)} />}</AnimatePresence>
 
-      <MobileDrawer isOpen={mobileOpen} onClose={() => setMobileOpen(false)} />
+      <MobileDrawer
+        isOpen={mobileOpen}
+        onClose={() => setMobileOpen(false)}
+        categories={parents}
+        childrenByParent={childrenByParent}
+        loading={loading}
+        error={err}
+      />
     </>
   );
 };

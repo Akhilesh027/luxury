@@ -24,7 +24,6 @@ const InteractiveHotspot = ({ top, left, productId, productName, price }: Hotspo
     navigate(`/product/${productId}`);
   };
 
-  // Determine tooltip position based on hotspot location
   useEffect(() => {
     if (containerRef.current) {
       const parent = containerRef.current.closest(".relative, [style*='position']");
@@ -33,8 +32,7 @@ const InteractiveHotspot = ({ top, left, productId, productName, price }: Hotspo
         const hotspotRect = containerRef.current.getBoundingClientRect();
         const hotspotCenterX = hotspotRect.left + hotspotRect.width / 2;
         const parentCenterX = parentRect.left + parentRect.width / 2;
-        
-        // If hotspot is in the right half of the parent, show tooltip on left
+
         if (hotspotCenterX > parentCenterX) {
           setTooltipPosition("left");
         } else {
@@ -45,17 +43,17 @@ const InteractiveHotspot = ({ top, left, productId, productName, price }: Hotspo
   }, []);
 
   return (
-    <div 
+    <div
       ref={containerRef}
-      className="absolute group cursor-pointer z-20" 
+      className="absolute group cursor-pointer z-20"
       style={{ top, left }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onClick={handleClick}
     >
-      {/* Outer ring animation */}
+      {/* Outer ring animation – using lighter gold */}
       <motion.div
-        className="absolute -inset-3 rounded-full border border-gold/40"
+        className="absolute -inset-3 rounded-full border border-[#d4af37]/40"
         animate={{
           scale: [1, 1.5, 1],
           opacity: [0.5, 0, 0.5],
@@ -66,17 +64,17 @@ const InteractiveHotspot = ({ top, left, productId, productName, price }: Hotspo
           ease: "easeInOut",
         }}
       />
-      
-      {/* Main dot */}
+
+      {/* Main dot – gradient from dark gold to light gold */}
       <motion.div
-        className="relative w-4 h-4 rounded-full bg-gradient-to-br from-gold via-gold-light to-gold shadow-[0_0_20px_rgba(201,169,98,0.6)] z-10"
+        className="relative w-4 h-4 rounded-full bg-gradient-to-br from-[#7a5a1e] to-[#d4af37] shadow-[0_0_20px_rgba(212,175,55,0.6)] z-10"
         whileHover={{ scale: 1.3 }}
         transition={{ type: "spring", stiffness: 400 }}
       >
         {/* Inner glow */}
         <div className="absolute inset-0.5 rounded-full bg-gradient-to-br from-white/40 to-transparent" />
       </motion.div>
-      
+
       {/* Tooltip on hover */}
       <AnimatePresence>
         {isHovered && (
@@ -89,27 +87,27 @@ const InteractiveHotspot = ({ top, left, productId, productName, price }: Hotspo
               tooltipPosition === "right" ? "left-8" : "right-8"
             }`}
           >
-            {/* Connector line */}
-            <div 
+            {/* Connector line – gradient based on tooltip position */}
+            <div
               className={`absolute top-1/2 -translate-y-1/2 w-4 h-px bg-gradient-to-r ${
-                tooltipPosition === "right" 
-                  ? "left-0 -translate-x-full from-transparent to-gold/60" 
-                  : "right-0 translate-x-full from-gold/60 to-transparent"
-              }`} 
+                tooltipPosition === "right"
+                  ? "left-0 -translate-x-full from-transparent to-[#d4af37]/60"
+                  : "right-0 translate-x-full from-[#d4af37]/60 to-transparent"
+              }`}
             />
-            
-            {/* Content card */}
-            <div className="bg-charcoal-dark/95 backdrop-blur-xl rounded-lg border border-gold/30 shadow-[0_8px_32px_rgba(0,0,0,0.4),0_0_0_1px_rgba(201,169,98,0.1)] overflow-hidden">
+
+            {/* Content card – dark background with gold border */}
+            <div className="bg-black/95 backdrop-blur-xl rounded-lg border border-[#d4af37]/30 shadow-[0_8px_32px_rgba(0,0,0,0.4),0_0_0_1px_rgba(212,175,55,0.1)] overflow-hidden">
               {/* Gold accent line */}
-              <div className="h-0.5 bg-gradient-to-r from-gold via-gold-light to-gold" />
-              
+              <div className="h-0.5 bg-gradient-to-r from-[#7a5a1e] to-[#d4af37]" />
+
               <div className="p-4">
-                <h4 className="font-heading text-sm font-semibold text-foreground tracking-wide leading-tight">
+                <h4 className="font-heading text-sm font-semibold text-white tracking-wide leading-tight">
                   {productName}
                 </h4>
                 <div className="flex items-center justify-between mt-2">
-                  <p className="text-gold font-bold text-lg">{formatPrice(price)}</p>
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground group-hover:text-gold transition-colors">
+                  <p className="text-[#d4af37] font-bold text-lg">{formatPrice(price)}</p>
+                  <div className="flex items-center gap-1 text-xs text-white/60 group-hover:text-[#d4af37] transition-colors">
                     <span>View</span>
                     <ArrowRight className="w-3 h-3" />
                   </div>

@@ -22,7 +22,7 @@ const HeroCarousel = () => {
   }, [nextSlide]);
 
   return (
-    <section className="relative w-full h-[60vh] lg:h-[80vh] overflow-hidden bg-charcoal">
+    <section className="relative w-full h-[60vh] lg:h-[80vh] overflow-hidden bg-[#1f160d]">
       <AnimatePresence mode="wait">
         <motion.div
           key={currentSlide}
@@ -37,7 +37,10 @@ const HeroCarousel = () => {
             alt=""
             className="w-full h-full object-cover"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent" />
+
+          {/* Luxury overlay */}
+          <div className="absolute inset-0 bg-gradient-to-t from-[#1a120b]/95 via-[#2a1d10]/35 to-transparent" />
+          <div className="absolute inset-0 bg-black/20" />
 
           {/* Hotspots */}
           {heroSlides[currentSlide].hotspots.map((hotspot, idx) => (
@@ -64,12 +67,12 @@ const HeroCarousel = () => {
             transition={{ delay: 0.3 }}
             className="absolute bottom-20 lg:bottom-8 left-4 lg:left-8 right-4 lg:right-auto"
           >
-            <div className="bg-card/90 backdrop-blur-xl rounded-xl p-4 lg:p-6 border border-gold/20 max-w-md shadow-elevated">
+            <div className="max-w-md rounded-2xl border border-[#d4af37]/25 bg-[#2a1d10]/70 p-4 lg:p-6 backdrop-blur-xl shadow-[0_12px_40px_rgba(0,0,0,0.35)]">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-gold/20 flex items-center justify-center">
-                  <ShoppingBag className="w-5 h-5 text-gold" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-full border border-[#d4af37]/30 bg-[#d4af37]/15">
+                  <ShoppingBag className="h-5 w-5 text-[#f1d27a]" />
                 </div>
-                <p className="text-foreground font-medium">
+                <p className="font-medium text-[#f8f3e7] text-base lg:text-lg tracking-wide">
                   {heroSlides[currentSlide].title} →
                 </p>
               </div>
@@ -83,7 +86,7 @@ const HeroCarousel = () => {
         variant="icon"
         size="icon"
         onClick={prevSlide}
-        className="absolute left-4 top-1/2 -translate-y-1/2 bg-card/50 backdrop-blur-md border border-border/50 hover:bg-card"
+        className="absolute left-4 top-1/2 -translate-y-1/2 border border-[#d4af37]/25 bg-[#2a1d10]/55 text-[#f8f3e7] backdrop-blur-md hover:bg-[#3b2a12]/80 hover:text-[#ffd76a]"
       >
         <ChevronLeft className="h-5 w-5" />
       </Button>
@@ -92,18 +95,18 @@ const HeroCarousel = () => {
         variant="icon"
         size="icon"
         onClick={nextSlide}
-        className="absolute right-4 top-1/2 -translate-y-1/2 bg-card/50 backdrop-blur-md border border-border/50 hover:bg-card"
+        className="absolute right-4 top-1/2 -translate-y-1/2 border border-[#d4af37]/25 bg-[#2a1d10]/55 text-[#f8f3e7] backdrop-blur-md hover:bg-[#3b2a12]/80 hover:text-[#ffd76a]"
       >
         <ChevronRight className="h-5 w-5" />
       </Button>
 
       {/* Pagination */}
       <div className="absolute bottom-8 right-4 lg:right-8 flex items-center gap-3 text-sm font-medium">
-        <span className="text-gold text-xl font-heading">
+        <span className="text-[#f1d27a] text-xl font-semibold tracking-wider">
           {String(currentSlide + 1).padStart(2, "0")}
         </span>
-        <div className="w-12 h-px bg-border" />
-        <span className="text-muted-foreground">
+        <div className="h-px w-12 bg-[#d4af37]/40" />
+        <span className="text-[#f8f3e7]/70">
           {String(heroSlides.length).padStart(2, "0")}
         </span>
       </div>

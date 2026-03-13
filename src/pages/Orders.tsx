@@ -97,7 +97,7 @@ const Orders = () => {
       case "cancelled":
         return <span className={`${base} border-red-500/40 bg-red-500/10 text-red-400`}>Cancelled</span>;
       default:
-        return <span className={`${base} border-gold/40 bg-gold/10 text-gold`}>Placed</span>;
+        return <span className={`${base} border-[#d4af37]/40 bg-[#d4af37]/10 text-[#d4af37]`}>Placed</span>;
     }
   };
 
@@ -127,28 +127,35 @@ const Orders = () => {
   const empty = useMemo(() => !loading && orders.length === 0, [loading, orders.length]);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gradient-to-r from-[#7a5a1e] via-[#d4af37] to-[#7a5a1e] relative">
+      {/* Soft overlay for text contrast */}
+      <div className="absolute inset-0 bg-white/5 backdrop-blur-[2px]" />
+
       <Header />
 
-      <main className="container mx-auto px-4 py-10">
+      <main className="container mx-auto px-4 py-10 relative z-10">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-3xl lg:text-4xl font-heading font-bold">My Orders</h1>
-            <p className="text-muted-foreground mt-1">Track and view your order details</p>
+            <h1 className="text-3xl lg:text-4xl font-heading font-bold text-white drop-shadow-lg">My Orders</h1>
+            <p className="text-white/80 mt-1">Track and view your order details</p>
           </div>
         </div>
 
         {loading ? (
-          <div className="p-6 rounded-xl border border-border/50 bg-card text-muted-foreground">
+          <div className="p-6 rounded-xl border border-white/20 bg-black/40 backdrop-blur-sm text-white/80">
             Loading orders...
           </div>
         ) : empty ? (
-          <div className="p-10 rounded-xl border border-border/50 bg-card text-center">
-            <Package className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
-            <h2 className="text-xl font-heading font-bold">No orders yet</h2>
-            <p className="text-muted-foreground mt-2">Once you place an order, it will show here.</p>
+          <div className="p-10 rounded-xl border border-white/20 bg-black/40 backdrop-blur-sm text-center">
+            <Package className="w-16 h-16 mx-auto text-white/50 mb-4" />
+            <h2 className="text-xl font-heading font-bold text-white">No orders yet</h2>
+            <p className="text-white/80 mt-2">Once you place an order, it will show here.</p>
             <Link to="/catalog">
-              <Button variant="gold" className="mt-5">Start Shopping</Button>
+              <Button
+                className="mt-5 bg-white text-[#7a5a1e] hover:bg-[#d4af37] hover:text-white border-0"
+              >
+                Start Shopping
+              </Button>
             </Link>
           </div>
         ) : (
@@ -159,35 +166,38 @@ const Orders = () => {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: idx * 0.03 }}
-                className="rounded-xl border border-border/50 bg-card p-5"
+                className="rounded-xl border border-white/20 bg-black/40 backdrop-blur-sm p-5"
               >
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
                     <div className="flex items-center gap-3">
-                      <p className="font-semibold text-gold">{order.orderNumber}</p>
+                      <p className="font-semibold text-[#d4af37]">{order.orderNumber}</p>
                       {statusBadge(order.status)}
                     </div>
-                    <p className="text-sm text-muted-foreground mt-1">
+                    <p className="text-sm text-white/70 mt-1">
                       Placed on {new Date(order.createdAt).toLocaleString("en-IN")}
                     </p>
                   </div>
 
                   <div className="text-right">
-                    <p className="text-sm text-muted-foreground">Total</p>
-                    <p className="text-lg font-bold">{formatPrice(order.pricing.total)}</p>
+                    <p className="text-sm text-white/70">Total</p>
+                    <p className="text-lg font-bold text-[#d4af37]">{formatPrice(order.pricing.total)}</p>
                   </div>
                 </div>
 
-                <div className="mt-4 flex items-center justify-between gap-4 border-t border-border/50 pt-4">
-                  <div className="text-sm text-muted-foreground">
+                <div className="mt-4 flex items-center justify-between gap-4 border-t border-white/10 pt-4">
+                  <div className="text-sm text-white/70">
                     {order.items?.length || 0} item(s) • Payment:{" "}
-                    <span className="text-foreground font-medium">
+                    <span className="text-white font-medium">
                       {order.payment?.method?.toUpperCase()} ({order.payment?.status})
                     </span>
                   </div>
 
                   <Link to={`/orders/${order._id}`}>
-                    <Button variant="outline">
+                    <Button
+                      variant="outline"
+                      className="border-white text-white hover:bg-white hover:text-[#7a5a1e]"
+                    >
                       View Details <ArrowRight className="w-4 h-4 ml-2" />
                     </Button>
                   </Link>

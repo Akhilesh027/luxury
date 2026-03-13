@@ -27,7 +27,7 @@ type CategoriesResponse = {
   };
 };
 
-const API_BASE = "https://api.jsgallor.com/api";
+const API_BASE = "http://localhost:5000/api";
 
 // ✅ set current website segment here
 const WEBSITE_SEGMENT: "all" | "luxury" = "luxury";
@@ -44,10 +44,9 @@ async function apiGet<T>(url: string, signal?: AbortSignal): Promise<T> {
   const res = await fetch(url, {
     method: "GET",
     headers: { "Content-Type": "application/json" },
-    // ✅ keep CORS simple
-    // credentials: "include",
     signal,
   });
+
   if (!res.ok) throw new Error(`Request failed (${res.status})`);
   return (await res.json()) as T;
 }
@@ -68,7 +67,6 @@ const PopularCategories = () => {
     });
   };
 
-  // ✅ Fetch categories (same endpoint as Header)
   useEffect(() => {
     const ac = new AbortController();
 
@@ -100,7 +98,6 @@ const PopularCategories = () => {
     return ["all", WEBSITE_SEGMENT];
   }, []);
 
-  // ✅ Only parent categories, active, showOnWebsite, featured (popular)
   const popularParents = useMemo(() => {
     const filtered = (items || []).filter((c) => {
       const seg = String(c.segment || "all").toLowerCase();
@@ -112,7 +109,6 @@ const PopularCategories = () => {
       );
     });
 
-    // prefer featured, then order
     filtered.sort((a, b) => {
       const fa = a.featured ? 1 : 0;
       const fb = b.featured ? 1 : 0;
@@ -120,7 +116,6 @@ const PopularCategories = () => {
       return (a.order ?? 0) - (b.order ?? 0);
     });
 
-    // show top 10
     return filtered.slice(0, 10);
   }, [items, allowedSegments]);
 
@@ -131,33 +126,46 @@ const PopularCategories = () => {
   };
 
   return (
-    <section className="py-16 lg:py-24 bg-background">
+    <section className="py-16 lg:py-24 bg-gradient-to-r from-[#3b2a12] via-[#8b6b2e] to-[#3b2a12] text-[#f8f3e7]">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between mb-8">
-          <h2 className="text-3xl lg:text-4xl font-heading font-bold">Popular Categories</h2>
+          <h2 className="text-3xl lg:text-4xl font-heading font-bold text-[#f8f3e7] tracking-wide">
+            Popular Categories
+          </h2>
 
           <div className="hidden md:flex gap-2">
-            <Button variant="icon" size="icon" onClick={() => scroll("left")}>
+            <Button
+              variant="icon"
+              size="icon"
+              onClick={() => scroll("left")}
+              className="bg-[#2b1d0e]/70 border border-[#ffd76a]/30 text-[#f8f3e7] hover:bg-[#3b2a12] hover:text-[#ffd76a]"
+            >
               <ArrowLeft className="h-5 w-5" />
             </Button>
-            <Button variant="icon" size="icon" onClick={() => scroll("right")}>
+
+            <Button
+              variant="icon"
+              size="icon"
+              onClick={() => scroll("right")}
+              className="bg-[#2b1d0e]/70 border border-[#ffd76a]/30 text-[#f8f3e7] hover:bg-[#3b2a12] hover:text-[#ffd76a]"
+            >
               <ArrowRight className="h-5 w-5" />
             </Button>
           </div>
         </div>
 
         {loading ? (
-          <div className="rounded-xl border border-border/40 bg-secondary/20 p-6 flex items-center gap-3">
-            <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">Loading categories...</p>
+          <div className="rounded-xl border border-[#ffd76a]/20 bg-[#2b1d0e]/40 p-6 flex items-center gap-3">
+            <Loader2 className="w-5 h-5 animate-spin text-[#ffd76a]" />
+            <p className="text-sm text-[#f8f3e7]/80">Loading categories...</p>
           </div>
         ) : err ? (
-          <div className="rounded-xl border border-border/40 bg-secondary/20 p-6">
-            <p className="text-sm text-muted-foreground">{err}</p>
+          <div className="rounded-xl border border-[#ffd76a]/20 bg-[#2b1d0e]/40 p-6">
+            <p className="text-sm text-[#f8f3e7]/80">{err}</p>
           </div>
         ) : popularParents.length === 0 ? (
-          <div className="rounded-xl border border-border/40 bg-secondary/20 p-6">
-            <p className="text-sm text-muted-foreground">No categories to show.</p>
+          <div className="rounded-xl border border-[#ffd76a]/20 bg-[#2b1d0e]/40 p-6">
+            <p className="text-sm text-[#f8f3e7]/80">No categories to show.</p>
           </div>
         ) : (
           <div
@@ -175,7 +183,7 @@ const PopularCategories = () => {
                 className="flex-shrink-0 w-64 lg:w-72 snap-start group"
               >
                 <Link to={`/catalog/${category.slug}`} className="block cursor-pointer">
-                  <div className="relative overflow-hidden rounded-xl aspect-[4/5]">
+                  <div className="relative overflow-hidden rounded-xl aspect-[4/5] border border-[#ffd76a]/20 group-hover:border-[#ffd76a]/50 transition-all duration-300 shadow-lg">
                     <img
                       src={pickImage(category, index)}
                       alt={category.name}
@@ -183,10 +191,20 @@ const PopularCategories = () => {
                       loading="lazy"
                     />
 
-                    <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#2b1d0e]/95 via-[#3b2a12]/40 to-transparent" />
 
                     <div className="absolute bottom-0 left-0 right-0 p-4">
-                      <h4 className="text-lg font-semibold">{category.name}</h4>
+                      <div className="rounded-lg bg-[#2b1d0e]/45 backdrop-blur-sm border border-[#ffd76a]/20 px-4 py-3">
+                        <h4 className="text-lg font-semibold text-[#f8f3e7] tracking-wide">
+                          {category.name}
+                        </h4>
+
+                        {category.productCount > 0 && (
+                          <p className="text-sm text-[#ffd76a] mt-1">
+                            {category.productCount} Products
+                          </p>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </Link>
