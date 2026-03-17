@@ -21,6 +21,20 @@ import { toast } from "@/hooks/use-toast";
 
 const API_BASE = "https://api.jsgallor.com/api/luxury";
 
+type Variant = {
+  _id: string;
+  attributes: {
+    size?: string;
+    color?: string;
+    fabric?: string;
+  };
+  sku: string;
+  price: number;
+  quantity: number;
+  lowStockThreshold: number;
+  image?: string;
+};
+
 type Product = {
   _id: string;
   title?: string;
@@ -49,6 +63,12 @@ type Product = {
     depth?: number;
     height?: number;
   };
+
+  // NEW variant fields
+  hasVariants?: boolean;
+  variants?: Variant[];
+  fabricTypes?: string[];
+  extraPillows?: number;
 };
 
 // Helper to normalise to array
@@ -57,7 +77,6 @@ function toArray(value?: string | string[]): string[] {
     return value.filter(Boolean);
   }
   if (typeof value === "string" && value.trim()) {
-    // split by comma or pipe (for legacy CSV)
     return value.split(/[,|]/g).map(s => s.trim()).filter(Boolean);
   }
   return [];
@@ -81,6 +100,19 @@ async function apiFetch(path: string, options: RequestInit = {}) {
   return json;
 }
 
+// Helper to get color name from hex (for display)
+const getColorName = (hex: string) => {
+  const colors: Record<string, string> = {
+    "#8B7355": "Brown",
+    "#1C1C1C": "Black",
+    "#F5E6D3": "White",
+    "#4A4A4A": "Grey",
+    "#4A6741": "Green",
+    "#2C3E50": "Blue",
+  };
+  return colors[hex.toUpperCase()] || hex;
+};
+
 const ProductDetail = () => {
   const { id } = useParams();
   const [product, setProduct] = useState<Product | null>(null);
@@ -90,29 +122,83 @@ const ProductDetail = () => {
   const [selectedImage, setSelectedImage] = useState(0);
   const [selectedColor, setSelectedColor] = useState<string>("");
   const [selectedSize, setSelectedSize] = useState<string>("");
+  const [selectedFabric, setSelectedFabric] = useState<string>("");
   const [quantity, setQuantity] = useState(1);
 
   const { addItem } = useCart();
   const { isFavorite, toggleFavorite } = useFavorites();
 
   const productName = product?.title || product?.name || "Product";
-  const price = Number(product?.newPrice ?? product?.price ?? 0);
-  const oldPrice = Number(product?.oldPrice ?? 0);
-  const discount = Number(product?.discount ?? 0);
+
+  // Compute available options from variants (if any)
+  const hasVariants = product?.hasVariants && !!product?.variants?.length;
+
+  const availableColors = useMemo(() => {
+    if (hasVariants && product?.variants) {
+      const colors = new Set<string>();
+      product.variants.forEach(v => {
+        if (v.attributes.color) colors.add(v.attributes.color);
+      });
+      return Array.from(colors);
+    }
+    return toArray(product?.color);
+  }, [product, hasVariants]);
+
+  const availableSizes = useMemo(() => {
+    if (hasVariants && product?.variants) {
+      const sizes = new Set<string>();
+      product.variants.forEach(v => {
+        if (v.attributes.size) sizes.add(v.attributes.size);
+      });
+      return Array.from(sizes);
+    }
+    return toArray(product?.size);
+  }, [product, hasVariants]);
+
+  const availableFabrics = useMemo(() => {
+    if (hasVariants && product?.variants) {
+      const fabrics = new Set<string>();
+      product.variants.forEach(v => {
+        if (v.attributes.fabric) fabrics.add(v.attributes.fabric);
+      });
+      return Array.from(fabrics);
+    }
+    return product?.fabricTypes || [];
+  }, [product, hasVariants]);
+
+  // Find the currently selected variant
+  const selectedVariant = useMemo(() => {
+    if (!hasVariants || !product?.variants) return null;
+    return product.variants.find(v => {
+      const colorMatch = !availableColors.length || v.attributes.color === selectedColor;
+      const sizeMatch = !availableSizes.length || v.attributes.size === selectedSize;
+      const fabricMatch = !availableFabrics.length || v.attributes.fabric === selectedFabric;
+      return colorMatch && sizeMatch && fabricMatch;
+    }) || null;
+  }, [product, hasVariants, selectedColor, selectedSize, selectedFabric, availableColors, availableSizes, availableFabrics]);
+
+  // Determine display price and stock
+  const displayPrice = useMemo(() => {
+    if (selectedVariant) return selectedVariant.price;
+    return Number(product?.newPrice ?? product?.price ?? 0);
+  }, [product, selectedVariant]);
+
+  const displayStock = useMemo(() => {
+    if (selectedVariant) return selectedVariant.quantity;
+    return product?.inStock ? 999 : 0; // fallback, but you may have product.quantity
+  }, [product, selectedVariant]);
+
+  const inStock = displayStock > 0;
 
   const images = useMemo(() => {
-    const list = product?.images?.length ? product.images : product?.image ? [product.image] : [];
+    let list: string[] = [];
+    if (selectedVariant?.image) {
+      list = [selectedVariant.image];
+    } else {
+      list = product?.images?.length ? product.images : product?.image ? [product.image] : [];
+    }
     return list.length ? list : ["https://via.placeholder.com/900x900?text=No+Image"];
-  }, [product]);
-
-  const colorOptions = useMemo(() => toArray(product?.color), [product?.color]);
-  const sizeOptions = useMemo(() => toArray(product?.size), [product?.size]);
-
-  // Auto-select first if only one option
-  useEffect(() => {
-    if (colorOptions.length === 1) setSelectedColor(colorOptions[0]);
-    if (sizeOptions.length === 1) setSelectedSize(sizeOptions[0]);
-  }, [colorOptions, sizeOptions]);
+  }, [product, selectedVariant]);
 
   const formatPrice = (p: number) =>
     new Intl.NumberFormat("en-IN", {
@@ -120,6 +206,20 @@ const ProductDetail = () => {
       currency: "INR",
       maximumFractionDigits: 0,
     }).format(Number(p || 0));
+
+  // Auto-select first variant or first options
+  useEffect(() => {
+    if (hasVariants && product?.variants && product.variants.length > 0) {
+      const first = product.variants[0];
+      setSelectedColor(first.attributes.color || "");
+      setSelectedSize(first.attributes.size || "");
+      setSelectedFabric(first.attributes.fabric || "");
+    } else {
+      if (availableColors.length === 1) setSelectedColor(availableColors[0]);
+      if (availableSizes.length === 1) setSelectedSize(availableSizes[0]);
+      if (availableFabrics.length === 1) setSelectedFabric(availableFabrics[0]);
+    }
+  }, [product, hasVariants, availableColors, availableSizes, availableFabrics]);
 
   // fetch product + related
   useEffect(() => {
@@ -152,8 +252,9 @@ const ProductDetail = () => {
     })();
   }, [id]);
 
-  const requireColor = colorOptions.length > 1;
-  const requireSize = sizeOptions.length > 1;
+  const requireColor = availableColors.length > 1;
+  const requireSize = availableSizes.length > 1;
+  const requireFabric = availableFabrics.length > 1;
 
   const validateSelections = () => {
     if (requireColor && !selectedColor) {
@@ -164,6 +265,10 @@ const ProductDetail = () => {
       toast({ title: "Select a size", description: "Please choose a size to continue." });
       return false;
     }
+    if (requireFabric && !selectedFabric) {
+      toast({ title: "Select a fabric", description: "Please choose a fabric to continue." });
+      return false;
+    }
     return true;
   };
 
@@ -172,23 +277,31 @@ const ProductDetail = () => {
 
     if (!validateSelections()) return;
 
-    addItem(
-      {
-        id: product._id,
-        name: productName,
-        price,
-        image: images[0],
-        color: selectedColor || (colorOptions.length === 1 ? colorOptions[0] : ""),
-        size: selectedSize,
-      },
-      quantity
-    );
+    // Build attributes object
+    const attributes: { size?: string; color?: string; fabric?: string } = {};
+    if (selectedSize) attributes.size = selectedSize;
+    if (selectedColor) attributes.color = selectedColor;
+    if (selectedFabric) attributes.fabric = selectedFabric;
+
+    // Prepare item for cart
+    const cartItem = {
+      id: product._id,
+      name: productName,
+      price: displayPrice,
+      image: images[0],
+      variantId: selectedVariant?._id || null,
+      attributes,
+    };
+
+    addItem(cartItem, quantity);
 
     toast({
       title: "Added to cart",
       description: `${quantity}x ${productName}${
-        selectedColor ? ` • Color: ${selectedColor}` : ""
-      }${selectedSize ? ` • Size: ${selectedSize}` : ""} added.`,
+        selectedColor ? ` • Color: ${getColorName(selectedColor)}` : ""
+      }${selectedSize ? ` • Size: ${selectedSize}` : ""}${
+        selectedFabric ? ` • Fabric: ${selectedFabric}` : ""
+      } added.`,
     });
   };
 
@@ -199,11 +312,12 @@ const ProductDetail = () => {
       productId: product._id,
       id: product._id,
       name: productName,
-      price,
+      price: displayPrice,
       image: images[0],
       type: product?.type || "",
       color: selectedColor,
       size: selectedSize,
+      fabric: selectedFabric,
     });
   };
 
@@ -241,7 +355,6 @@ const ProductDetail = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-r from-[#7a5a1e] via-[#d4af37] to-[#7a5a1e] relative">
-      {/* Soft overlay for text contrast */}
       <div className="absolute inset-0 bg-white/5 backdrop-blur-[2px]" />
 
       <Header />
@@ -270,9 +383,9 @@ const ProductDetail = () => {
                 className="w-full h-full object-cover"
               />
 
-              {discount > 0 && (
+              {product.discount && product.discount > 0 && (
                 <span className="absolute top-4 left-4 bg-[#d4af37] text-[#7a5a1e] text-sm font-bold px-3 py-1 rounded-full">
-                  -{discount}%
+                  -{product.discount}%
                 </span>
               )}
 
@@ -320,27 +433,27 @@ const ProductDetail = () => {
             </div>
 
             <div className="flex items-baseline gap-4">
-              <span className="text-3xl font-bold">{formatPrice(price)}</span>
-              {oldPrice > price && (
-                <span className="text-xl text-white/50 line-through">{formatPrice(oldPrice)}</span>
+              <span className="text-3xl font-bold">{formatPrice(displayPrice)}</span>
+              {product.oldPrice && product.oldPrice > displayPrice && (
+                <span className="text-xl text-white/50 line-through">{formatPrice(product.oldPrice)}</span>
               )}
             </div>
 
             <p className="text-white/80 leading-relaxed">{product.description || "—"}</p>
 
             {/* Color Selection */}
-            {colorOptions.length > 0 && (
+            {availableColors.length > 0 && (
               <div>
                 <div className="flex items-center justify-between">
                   <p className="font-medium text-white mb-3">Color</p>
                   {selectedColor ? (
-                    <p className="text-xs text-white/60">{selectedColor}</p>
+                    <p className="text-xs text-white/60">{getColorName(selectedColor)}</p>
                   ) : requireColor ? (
                     <p className="text-xs text-red-300">Required</p>
                   ) : null}
                 </div>
                 <div className="flex flex-wrap gap-3">
-                  {colorOptions.map((color, idx) => {
+                  {availableColors.map((color, idx) => {
                     const selected = selectedColor === color;
                     const isHex = isHexColor(color);
                     return (
@@ -364,7 +477,7 @@ const ProductDetail = () => {
             )}
 
             {/* Size Selection */}
-            {sizeOptions.length > 0 && (
+            {availableSizes.length > 0 && (
               <div>
                 <div className="flex items-center justify-between">
                   <p className="font-medium text-white mb-3">Size</p>
@@ -375,7 +488,7 @@ const ProductDetail = () => {
                   ) : null}
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {sizeOptions.map((size) => {
+                  {availableSizes.map((size) => {
                     const selected = selectedSize === size;
                     return (
                       <button
@@ -395,23 +508,72 @@ const ProductDetail = () => {
               </div>
             )}
 
-            {/* Dimensions */}
-            <div className="bg-black/40 backdrop-blur-sm rounded-xl border border-white/10 p-4">
-              <p className="font-medium text-white mb-3">Dimensions</p>
-              <div className="grid grid-cols-3 gap-4 text-sm">
-                <div>
-                  <span className="text-white/70">Width</span>
-                  <p className="font-medium text-white">{product.dimensions?.width ?? "—"} cm</p>
+            {/* Fabric Selection */}
+            {availableFabrics.length > 0 && (
+              <div>
+                <div className="flex items-center justify-between">
+                  <p className="font-medium text-white mb-3">Fabric</p>
+                  {selectedFabric ? (
+                    <p className="text-xs text-white/60 capitalize">{selectedFabric}</p>
+                  ) : requireFabric ? (
+                    <p className="text-xs text-red-300">Required</p>
+                  ) : null}
                 </div>
-                <div>
-                  <span className="text-white/70">Depth</span>
-                  <p className="font-medium text-white">{product.dimensions?.depth ?? "—"} cm</p>
-                </div>
-                <div>
-                  <span className="text-white/70">Height</span>
-                  <p className="font-medium text-white">{product.dimensions?.height ?? "—"} cm</p>
+                <div className="flex flex-wrap gap-2">
+                  {availableFabrics.map((fabric) => {
+                    const selected = selectedFabric === fabric;
+                    return (
+                      <button
+                        key={fabric}
+                        onClick={() => setSelectedFabric(fabric)}
+                        className={`px-4 py-2 rounded-lg border text-sm font-medium transition-all capitalize ${
+                          selected
+                            ? "border-[#d4af37] bg-[#d4af37]/10 text-white"
+                            : "border-white/20 text-white/80 hover:border-white/40"
+                        }`}
+                      >
+                        {fabric}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
+            )}
+
+            {/* Dimensions */}
+            {product.dimensions && (
+              <div className="bg-black/40 backdrop-blur-sm rounded-xl border border-white/10 p-4">
+                <p className="font-medium text-white mb-3">Dimensions</p>
+                <div className="grid grid-cols-3 gap-4 text-sm">
+                  <div>
+                    <span className="text-white/70">Width</span>
+                    <p className="font-medium text-white">{product.dimensions.width ?? "—"} cm</p>
+                  </div>
+                  <div>
+                    <span className="text-white/70">Depth</span>
+                    <p className="font-medium text-white">{product.dimensions.depth ?? "—"} cm</p>
+                  </div>
+                  <div>
+                    <span className="text-white/70">Height</span>
+                    <p className="font-medium text-white">{product.dimensions.height ?? "—"} cm</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Extra pillows */}
+            {product.extraPillows ? (
+              <div className="text-sm text-white/70">
+                <span className="font-medium text-white">Extra pillows included:</span> {product.extraPillows}
+              </div>
+            ) : null}
+
+            {/* Stock status */}
+            <div className="text-sm">
+              <span className="text-white/70">Availability:</span>{" "}
+              <span className={inStock ? "text-green-300" : "text-red-300"}>
+                {inStock ? `In Stock (${displayStock})` : "Out of Stock"}
+              </span>
             </div>
 
             {/* Quantity & Add to Cart */}
@@ -420,6 +582,7 @@ const ProductDetail = () => {
                 <button
                   onClick={() => setQuantity(Math.max(1, quantity - 1))}
                   className="text-white/70 hover:text-white"
+                  disabled={!inStock}
                 >
                   <Minus className="w-5 h-5" />
                 </button>
@@ -427,6 +590,7 @@ const ProductDetail = () => {
                 <button
                   onClick={() => setQuantity(quantity + 1)}
                   className="text-white/70 hover:text-white"
+                  disabled={!inStock || quantity >= displayStock}
                 >
                   <Plus className="w-5 h-5" />
                 </button>
@@ -436,10 +600,10 @@ const ProductDetail = () => {
                 className="flex-1 bg-white text-[#7a5a1e] hover:bg-[#d4af37] hover:text-white border-0"
                 size="xl"
                 onClick={handleAddToCart}
-                disabled={product.inStock === false}
+                disabled={!inStock || (hasVariants && !selectedVariant)}
               >
                 <ShoppingBag className="w-5 h-5 mr-2" />
-                {product.inStock === false ? "Out of Stock" : "Add to Cart"}
+                {!inStock ? "Out of Stock" : "Add to Cart"}
               </Button>
             </div>
 

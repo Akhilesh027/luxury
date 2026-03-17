@@ -1,13 +1,8 @@
 // src/pages/Checkout.tsx (LUXURY)
 // ✅ UPDATED with dynamic shipping by city + optional pincode
 // ✅ Razorpay (REAL online flow) + COD
-// ✅ Flow:
-//    1) COD: POST /api/luxury/orders
-//    2) ONLINE (Razorpay):
-//        - POST /api/payments/create-order
-//        - open Razorpay checkout
-//        - POST /api/payments/verify
-//        - POST /api/luxury/orders
+// ✅ Shows variant attributes (color, size, fabric) for each item
+// ✅ Sends variantId and attributes to backend when placing order
 // ✅ Coupon: sent to backend; backend must verify
 // ✅ Shipping:
 //        - GET /api/shipping-costs/by-location?website=luxury&city=...&pincode=...
@@ -165,6 +160,19 @@ const loadRazorpay = () =>
     document.body.appendChild(script);
   });
 
+// Helper to get color name from hex
+const getColorName = (hex: string) => {
+  const colors: Record<string, string> = {
+    "#8B7355": "Brown",
+    "#1C1C1C": "Black",
+    "#F5E6D3": "White",
+    "#4A4A4A": "Grey",
+    "#4A6741": "Green",
+    "#2C3E50": "Blue",
+  };
+  return colors[hex.toUpperCase()] || hex;
+};
+
 const Checkout = () => {
   const { items, totalPrice, clearCart } = useCart();
   const navigate = useNavigate();
@@ -203,7 +211,7 @@ const Checkout = () => {
   const [discount, setDiscount] = useState(0);
   const [shippingDiscount, setShippingDiscount] = useState(0);
 
-  // ✅ dynamic shipping
+  // dynamic shipping
   const [shippingBase, setShippingBase] = useState(0);
   const [shippingLoading, setShippingLoading] = useState(false);
   const [shippingMeta, setShippingMeta] = useState<{
@@ -627,11 +635,14 @@ const Checkout = () => {
       const payload: any = {
         addressId: selectedAddressId,
 
+        // ✅ Include variant details for each item
         items: items.map((it: any) => ({
           productId: it.id,
+          variantId: it.variantId || null,
+          attributes: it.attributes || {},
           name: it.name,
           image: it.image,
-          color: it.color || "",
+          color: it.attributes?.color || it.color || "",
           price: Number(it.price || 0),
           quantity: Number(it.quantity || 1),
         })),
@@ -735,7 +746,6 @@ const Checkout = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-r from-[#7a5a1e] via-[#d4af37] to-[#7a5a1e] relative">
-      {/* Soft overlay for text contrast */}
       <div className="absolute inset-0 bg-white/5 backdrop-blur-[2px]" />
 
       <Header />
@@ -985,16 +995,47 @@ const Checkout = () => {
               <h2 className="text-xl font-heading font-bold text-white drop-shadow-lg mb-6">Order Summary</h2>
 
               <div className="space-y-4 max-h-64 overflow-y-auto mb-4">
-                {items.map((item: any) => (
-                  <div key={`${item.id}-${item.color || ""}`} className="flex gap-3">
-                    <img src={item.image} alt={item.name} className="w-16 h-16 object-cover rounded-lg" />
-                    <div className="flex-1">
-                      <p className="font-medium text-sm text-white">{item.name}</p>
-                      <p className="text-xs text-white/70">Qty: {item.quantity}</p>
+                {items.map((item: any) => {
+                  const attributes = item.attributes || {};
+                  const color = attributes.color;
+                  const size = attributes.size;
+                  const fabric = attributes.fabric;
+
+                  return (
+                    <div key={`${item.id}-${item.variantId || ''}`} className="flex gap-3">
+                      <img src={item.image} alt={item.name} className="w-16 h-16 object-cover rounded-lg" />
+                      <div className="flex-1">
+                        <p className="font-medium text-sm text-white">{item.name}</p>
+                        {/* Variant badges */}
+                        {(color || size || fabric) && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {color && (
+                              <span className="inline-flex items-center gap-1 bg-white/10 px-2 py-0.5 rounded-full text-xs text-white/90">
+                                <span
+                                  className="w-3 h-3 rounded-full"
+                                  style={{ backgroundColor: color }}
+                                />
+                                {getColorName(color)}
+                              </span>
+                            )}
+                            {size && (
+                              <span className="bg-white/10 px-2 py-0.5 rounded-full text-xs text-white/90">
+                                Size: {size}
+                              </span>
+                            )}
+                            {fabric && (
+                              <span className="bg-white/10 px-2 py-0.5 rounded-full text-xs text-white/90 capitalize">
+                                {fabric}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                        <p className="text-xs text-white/70">Qty: {item.quantity}</p>
+                      </div>
+                      <p className="font-medium text-sm text-white">{formatPrice(item.price * item.quantity)}</p>
                     </div>
-                    <p className="font-medium text-sm text-white">{formatPrice(item.price * item.quantity)}</p>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               {appliedCoupon?.code ? (

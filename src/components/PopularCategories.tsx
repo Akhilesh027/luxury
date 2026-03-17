@@ -27,7 +27,7 @@ type CategoriesResponse = {
   };
 };
 
-const API_BASE = "http://localhost:5000/api";
+const API_BASE = "https://api.jsgallor.com/api";
 
 // ✅ set current website segment here
 const WEBSITE_SEGMENT: "all" | "luxury" = "luxury";

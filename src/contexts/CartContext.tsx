@@ -1,3 +1,4 @@
+// src/contexts/CartContext.tsx
 import React, {
   createContext,
   useContext,
@@ -12,19 +13,27 @@ import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/auth-context";
 
 export interface CartItem {
-  id: string;          // ✅ productId (_id)
+  id: string;                 // productId (_id)
   name: string;
   price: number;
   image: string;
-  color?: string;
+  variantId?: string | null;  // optional variantId
+  attributes?: {
+    size?: string | null;
+    color?: string | null;
+    fabric?: string | null;
+  };
   quantity: number;
 }
 
 interface CartContextType {
   items: CartItem[];
-  addItem: (item: Omit<CartItem, "quantity">, quantity?: number) => void;
-  removeItem: (id: string, color?: string) => void;
-  updateQuantity: (id: string, quantity: number, color?: string) => void;
+  addItem: (
+    item: Omit<CartItem, "quantity">,
+    quantity?: number
+  ) => void;
+  removeItem: (itemId: string) => void; // now uses composite key or item _id
+  updateQuantity: (itemId: string, quantity: number) => void;
   clearCart: () => void;
   totalItems: number;
   totalPrice: number;
@@ -46,12 +55,17 @@ function safeParse<T>(v: string | null): T | null {
 }
 
 type ServerCartItem = {
-  _id?: string; // cart item id (optional)
-  productId?: string | { _id: string; name?: string; price?: number; images?: any };
+  _id?: string;                // cart item id (if returned from server)
+  productId: string | { _id: string; name?: string; price?: number; images?: any };
+  variantId?: string | null;
+  attributes?: {
+    size?: string | null;
+    color?: string | null;
+    fabric?: string | null;
+  };
   name?: string;
   price?: number;
   image?: string;
-  color?: string;
   quantity: number;
 };
 
@@ -87,7 +101,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     [token]
   );
 
-  // ✅ map server cart -> frontend cart
+  // map server cart -> frontend cart
   const normalizeServerItems = useCallback((serverItems: ServerCartItem[]): CartItem[] => {
     return (serverItems || [])
       .map((it) => {
@@ -112,30 +126,32 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
             : "");
 
         return {
-          id: productId, // ✅ always product _id
+          id: productId,
           name: it.name || prod?.name || "",
           price: Number(it.price ?? prod?.price ?? 0),
           image: image || "",
-          color: it.color || "",
+          variantId: it.variantId || null,
+          attributes: it.attributes || {},
           quantity: Number(it.quantity || 1),
         } as CartItem;
       })
       .filter(Boolean) as CartItem[];
   }, []);
 
-  // ✅ map frontend cart -> server payload (productId must be sent)
+  // map frontend cart -> server payload
   const toServerPayload = useCallback((localItems: CartItem[]) => {
     return (localItems || []).map((it) => ({
-      productId: it.id, // ✅ send product _id here
+      productId: it.id,
+      variantId: it.variantId || null,
+      attributes: it.attributes || {},
       name: it.name,
       price: it.price,
       image: it.image,
-      color: it.color || "",
       quantity: it.quantity,
     }));
   }, []);
 
-  // ---- load cart from server ----
+  // load cart from server
   const loadServerCart = useCallback(async () => {
     if (!token) return;
 
@@ -147,7 +163,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     persistLocal(normalized);
   }, [apiFetch, normalizeServerItems, persistLocal, token]);
 
-  // ---- merge local -> server after login ----
+  // merge local -> server after login
   const mergeLocalToServer = useCallback(async () => {
     if (!token) return;
 
@@ -197,7 +213,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     })();
   }, [isAuthenticated, token, mergeLocalToServer]);
 
-  // ---- syncNow (replace cart) ----
+  // syncNow (replace cart)
   const syncNow = useCallback(async () => {
     if (!token) return;
     await apiFetch("/cart", {
@@ -206,7 +222,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     });
   }, [apiFetch, items, token, toServerPayload]);
 
-  // ---- auto sync (debounced) when items change ----
+  // auto sync (debounced) when items change
   useEffect(() => {
     persistLocal(items);
 
@@ -223,53 +239,67 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     };
   }, [items, token, isAuthenticated, persistLocal, syncNow]);
 
-  // ---- cart ops ----
-  const addItem = useCallback((newItem: Omit<CartItem, "quantity">, qty: number = 1) => {
-    // ✅ ensure productId exists
-    if (!newItem.id) {
-      toast({ title: "Error", description: "ProductId (_id) is missing", variant: "destructive" });
-      return;
-    }
+  // Helper to generate a unique key for an item (for guest mode operations)
+  const getItemKey = (item: { id: string; variantId?: string | null; attributes?: any }) => {
+    const base = item.id;
+    const variant = item.variantId || 'null';
+    const attrColor = item.attributes?.color || 'null';
+    const attrSize = item.attributes?.size || 'null';
+    const attrFabric = item.attributes?.fabric || 'null';
+    return `${base}::${variant}::${attrColor}::${attrSize}::${attrFabric}`;
+  };
 
-    const quantityToAdd = Math.max(1, Number(qty) || 1);
-
-    setItems((prev) => {
-      const idx = prev.findIndex(
-        (it) => it.id === newItem.id && (it.color || "") === (newItem.color || "")
-      );
-
-      if (idx !== -1) {
-        const copy = [...prev];
-        copy[idx] = { ...copy[idx], quantity: copy[idx].quantity + quantityToAdd };
-        return copy;
+  // ---------- cart ops ----------
+  const addItem = useCallback(
+    (newItem: Omit<CartItem, "quantity">, qty: number = 1) => {
+      if (!newItem.id) {
+        toast({ title: "Error", description: "ProductId (_id) is missing", variant: "destructive" });
+        return;
       }
-      return [...prev, { ...newItem, quantity: quantityToAdd }];
-    });
 
-    toast({
-      title: "Added to cart",
-      description: `${newItem.name} (x${quantityToAdd}) added.`,
-    });
-  }, []);
+      const quantityToAdd = Math.max(1, Number(qty) || 1);
 
-  const removeItem = useCallback((id: string, color?: string) => {
-    setItems((prev) => prev.filter((it) => !(it.id === id && (it.color || "") === (color || ""))));
+      setItems((prev) => {
+        // Find existing item with same productId, variantId, and attributes
+        const key = getItemKey(newItem);
+        const idx = prev.findIndex((it) => getItemKey(it) === key);
+
+        if (idx !== -1) {
+          const copy = [...prev];
+          copy[idx] = { ...copy[idx], quantity: copy[idx].quantity + quantityToAdd };
+          return copy;
+        }
+        return [...prev, { ...newItem, quantity: quantityToAdd }];
+      });
+
+      toast({
+        title: "Added to cart",
+        description: `${newItem.name} (x${quantityToAdd}) added.`,
+      });
+    },
+    []
+  );
+
+  const removeItem = useCallback((itemId: string) => {
+    setItems((prev) => prev.filter((_, index) => String(index) !== itemId && getItemKey(prev[index]) !== itemId));
+    // For simplicity, we'll use a composite key; but better to use server _id when available.
+    // We'll implement removal by matching the key.
   }, []);
 
   const updateQuantity = useCallback(
-    (id: string, quantity: number, color?: string) => {
+    (itemId: string, quantity: number) => {
       const q = Math.max(0, Number(quantity) || 0);
       if (q < 1) {
-        removeItem(id, color);
+        removeItem(itemId);
         return;
       }
-      setItems((prev) =>
-        prev.map((it) =>
-          it.id === id && (it.color || "") === (color || "")
-            ? { ...it, quantity: q }
-            : it
-        )
-      );
+      setItems((prev) => {
+        const idx = prev.findIndex((_, i) => String(i) === itemId || getItemKey(prev[i]) === itemId);
+        if (idx === -1) return prev;
+        const copy = [...prev];
+        copy[idx] = { ...copy[idx], quantity: q };
+        return copy;
+      });
     },
     [removeItem]
   );

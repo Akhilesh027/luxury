@@ -18,11 +18,6 @@ import Footer from "@/components/Footer";
 import { useCart } from "@/contexts/CartContext";
 import { toast } from "sonner";
 
-/**
- * ✅ Adjust these if needed
- * - WEBSITE drives API segment and coupon localStorage key
- * - token key should match your auth storage
- */
 const WEBSITE: "affordable" | "midrange" | "luxury" = "luxury";
 const API_BASE = `https://api.jsgallor.com/api/${WEBSITE}`;
 
@@ -33,10 +28,8 @@ function getToken() {
 async function apiFetch(path: string, options: RequestInit = {}) {
   const token = getToken();
   const headers: any = { ...(options.headers || {}) };
-
   if (!(options.body instanceof FormData)) headers["Content-Type"] = "application/json";
   if (token) headers.Authorization = `Bearer ${token}`;
-
   return fetch(`${API_BASE}${path}`, { ...options, headers });
 }
 
@@ -77,6 +70,19 @@ function getSavedUserId(): string | null {
     return null;
   }
 }
+
+// Helper to get color name from hex (optional)
+const getColorName = (hex: string) => {
+  const colors: Record<string, string> = {
+    "#8B7355": "Brown",
+    "#1C1C1C": "Black",
+    "#F5E6D3": "White",
+    "#4A4A4A": "Grey",
+    "#4A6741": "Green",
+    "#2C3E50": "Blue",
+  };
+  return colors[hex.toUpperCase()] || hex;
+};
 
 const Cart = () => {
   const navigate = useNavigate();
@@ -127,108 +133,20 @@ const Cart = () => {
     localStorage.removeItem(LS_COUPON_KEY);
   };
 
-  // ✅ rich item payload for selected-category coupons
+  // Build rich item payload for category-specific coupons
   const buildCouponItemsPayload = () => {
     return items.map((item: any) => {
       const qty = Number(item?.quantity || 1);
-
-      const unitPrice = Number(
-        item?.price ??
-          item?.product?.price ??
-          item?.productSnapshot?.afterDiscount ??
-          item?.productSnapshot?.finalPrice ??
-          item?.productSnapshot?.salesPrice ??
-          item?.productSnapshot?.price ??
-          0
-      );
+      const unitPrice = Number(item?.price ?? 0);
 
       return {
-        productId: item?.id || item?.productId || item?.product?.id || item?.product?._id,
+        productId: item?.id || item?.productId,
         quantity: qty,
         price: unitPrice,
         lineTotal: unitPrice * qty,
-
-        categoryId:
-          item?.categoryId ||
-          item?.product?.categoryId ||
-          item?.productSnapshot?.categoryId ||
-          item?.product?.subcategoryId ||
-          item?.productSnapshot?.subcategoryId ||
-          (typeof item?.product?.category === "object"
-            ? item?.product?.category?._id || item?.product?.category?.id
-            : undefined) ||
-          (typeof item?.productSnapshot?.category === "object"
-            ? item?.productSnapshot?.category?._id || item?.productSnapshot?.category?.id
-            : undefined) ||
-          (typeof item?.product?.subcategory === "object"
-            ? item?.product?.subcategory?._id || item?.product?.subcategory?.id
-            : undefined) ||
-          (typeof item?.productSnapshot?.subcategory === "object"
-            ? item?.productSnapshot?.subcategory?._id || item?.productSnapshot?.subcategory?.id
-            : undefined) ||
-          (typeof item?.product?.category === "string" ? item?.product?.category : undefined) ||
-          (typeof item?.productSnapshot?.category === "string"
-            ? item?.productSnapshot?.category
-            : undefined) ||
-          (typeof item?.product?.subcategory === "string"
-            ? item?.product?.subcategory
-            : undefined) ||
-          (typeof item?.productSnapshot?.subcategory === "string"
-            ? item?.productSnapshot?.subcategory
-            : undefined),
-
-        category:
-          item?.product?.category ??
-          item?.productSnapshot?.category ??
-          undefined,
-
-        subcategoryId:
-          item?.product?.subcategoryId ||
-          item?.productSnapshot?.subcategoryId ||
-          (typeof item?.product?.subcategory === "object"
-            ? item?.product?.subcategory?._id || item?.product?.subcategory?.id
-            : undefined) ||
-          (typeof item?.productSnapshot?.subcategory === "object"
-            ? item?.productSnapshot?.subcategory?._id || item?.productSnapshot?.subcategory?.id
-            : undefined),
-
-        subcategory:
-          item?.product?.subcategory ??
-          item?.productSnapshot?.subcategory ??
-          undefined,
-
-        product: {
-          categoryId:
-            item?.product?.categoryId ||
-            item?.productSnapshot?.categoryId ||
-            (typeof item?.product?.category === "object"
-              ? item?.product?.category?._id || item?.product?.category?.id
-              : undefined) ||
-            (typeof item?.productSnapshot?.category === "object"
-              ? item?.productSnapshot?.category?._id || item?.productSnapshot?.category?.id
-              : undefined),
-          category: item?.product?.category ?? item?.productSnapshot?.category,
-          subcategoryId:
-            item?.product?.subcategoryId ||
-            item?.productSnapshot?.subcategoryId ||
-            (typeof item?.product?.subcategory === "object"
-              ? item?.product?.subcategory?._id || item?.product?.subcategory?.id
-              : undefined) ||
-            (typeof item?.productSnapshot?.subcategory === "object"
-              ? item?.productSnapshot?.subcategory?._id || item?.productSnapshot?.subcategory?.id
-              : undefined),
-          subcategory: item?.product?.subcategory ?? item?.productSnapshot?.subcategory,
-          price: unitPrice,
-        },
-
+        categoryId: item?.product?.categoryId, // simplified – adjust as needed
         productSnapshot: {
-          categoryId: item?.productSnapshot?.categoryId,
-          category: item?.productSnapshot?.category,
-          subcategoryId: item?.productSnapshot?.subcategoryId,
-          subcategory: item?.productSnapshot?.subcategory,
-          price: item?.productSnapshot?.price,
-          finalPrice: item?.productSnapshot?.finalPrice,
-          afterDiscount: item?.productSnapshot?.afterDiscount,
+          price: unitPrice,
         },
       };
     });
@@ -259,7 +177,7 @@ const Cart = () => {
           cartTotal: Number(totalPrice) || 0,
           shipping: Number(shippingBase) || 0,
           userId: userId || undefined,
-          items: buildCouponItemsPayload(), // ✅ required for category coupons
+          items: buildCouponItemsPayload(),
         }),
       });
 
@@ -399,7 +317,6 @@ const Cart = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-r from-[#7a5a1e] via-[#d4af37] to-[#7a5a1e] relative">
-      {/* Soft overlay for contrast */}
       <div className="absolute inset-0 bg-white/5 backdrop-blur-[2px]" />
 
       <Header />
@@ -427,7 +344,6 @@ const Cart = () => {
           </Button>
         </div>
 
-        {/* Secure checkout panel */}
         <div className="mb-6 rounded-xl border border-white/20 bg-black/40 backdrop-blur-sm p-4 flex items-start gap-3">
           <ShieldCheck className="w-5 h-5 text-[#d4af37] mt-0.5" />
           <div className="text-sm">
@@ -440,90 +356,114 @@ const Cart = () => {
 
         <div className="grid lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-4">
-            {items.map((item: any, index: number) => (
-              <motion.div
-                key={`${item.id}::${item.color || ""}`}
-                initial={{ opacity: 0, y: 18 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
-                className="flex gap-4 p-4 bg-black/40 backdrop-blur-sm rounded-xl border border-white/20"
-              >
-                <Link to={`/product/${item.id}`} className="w-24 h-24 lg:w-32 lg:h-32 flex-shrink-0">
-                  <img
-                    src={item.image}
-                    alt={item.name}
-                    className="w-full h-full object-cover rounded-lg"
-                    loading="lazy"
-                  />
-                </Link>
+            {items.map((item: any, index: number) => {
+              // Generate a unique key for cart operations
+              // If the item has a server _id (from the cart context), use it; otherwise build a composite.
+              const itemKey = item._id || `${item.id}|${item.variantId || ''}|${item.attributes?.color || ''}|${item.attributes?.size || ''}|${item.attributes?.fabric || ''}`;
 
-                <div className="flex-1 flex flex-col justify-between">
-                  <div>
-                    <Link
-                      to={`/product/${item.id}`}
-                      className="font-semibold text-white hover:text-[#d4af37] transition-colors line-clamp-1"
-                    >
-                      {item.name}
-                    </Link>
+              // Extract attributes
+              const color = item.attributes?.color;
+              const size = item.attributes?.size;
+              const fabric = item.attributes?.fabric;
 
-                    {item.color ? (
-                      <div className="flex items-center gap-2 mt-2">
-                        <span
-                          className="w-4 h-4 rounded-full border border-white/20"
-                          style={{ backgroundColor: item.color }}
-                        />
-                        <span className="text-sm text-white/70">{item.color}</span>
-                      </div>
-                    ) : (
-                      <p className="text-sm text-white/70 mt-2">Standard finish</p>
-                    )}
+              return (
+                <motion.div
+                  key={itemKey}
+                  initial={{ opacity: 0, y: 18 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                  className="flex gap-4 p-4 bg-black/40 backdrop-blur-sm rounded-xl border border-white/20"
+                >
+                  <Link to={`/product/${item.id}`} className="w-24 h-24 lg:w-32 lg:h-32 flex-shrink-0">
+                    <img
+                      src={item.image}
+                      alt={item.name}
+                      className="w-full h-full object-cover rounded-lg"
+                      loading="lazy"
+                    />
+                  </Link>
 
-                    <p className="text-xs text-white/50 mt-2">
-                      Unit price: {formatPrice(item.price)}
-                    </p>
-                  </div>
-
-                  <div className="flex items-center justify-between mt-4">
-                    <div className="flex items-center gap-3 bg-white/5 rounded-lg px-3 py-1">
-                      <button
-                        onClick={() => updateQuantity(item.id, item.quantity - 1, item.color)}
-                        className="text-white/70 hover:text-white"
-                        aria-label="Decrease quantity"
-                        disabled={item.quantity <= 1}
+                  <div className="flex-1 flex flex-col justify-between">
+                    <div>
+                      <Link
+                        to={`/product/${item.id}`}
+                        className="font-semibold text-white hover:text-[#d4af37] transition-colors line-clamp-1"
                       >
-                        <Minus className="w-4 h-4" />
-                      </button>
+                        {item.name}
+                      </Link>
 
-                      <span className="w-7 text-center font-medium text-white">{item.quantity}</span>
+                      {/* Variant badges */}
+                      {(color || size || fabric) && (
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          {color && (
+                            <span className="inline-flex items-center gap-1 bg-white/10 px-2 py-0.5 rounded-full text-xs text-white/90">
+                              <span
+                                className="w-3 h-3 rounded-full"
+                                style={{ backgroundColor: color }}
+                              />
+                              {getColorName(color)}
+                            </span>
+                          )}
+                          {size && (
+                            <span className="bg-white/10 px-2 py-0.5 rounded-full text-xs text-white/90">
+                              Size: {size}
+                            </span>
+                          )}
+                          {fabric && (
+                            <span className="bg-white/10 px-2 py-0.5 rounded-full text-xs text-white/90 capitalize">
+                              {fabric}
+                            </span>
+                          )}
+                        </div>
+                      )}
 
-                      <button
-                        onClick={() => updateQuantity(item.id, item.quantity + 1, item.color)}
-                        className="text-white/70 hover:text-white"
-                        aria-label="Increase quantity"
-                      >
-                        <Plus className="w-4 h-4" />
-                      </button>
+                      <p className="text-xs text-white/50 mt-2">
+                        Unit price: {formatPrice(item.price)}
+                      </p>
                     </div>
 
-                    <button
-                      onClick={() => removeItem(item.id, item.color)}
-                      className="text-white/70 hover:text-red-400 transition-colors"
-                      aria-label="Remove item"
-                      title="Remove"
-                    >
-                      <Trash2 className="w-5 h-5" />
-                    </button>
-                  </div>
-                </div>
+                    <div className="flex items-center justify-between mt-4">
+                      <div className="flex items-center gap-3 bg-white/5 rounded-lg px-3 py-1">
+                        <button
+                          onClick={() => updateQuantity(itemKey, item.quantity - 1)}
+                          className="text-white/70 hover:text-white"
+                          aria-label="Decrease quantity"
+                          disabled={item.quantity <= 1}
+                        >
+                          <Minus className="w-4 h-4" />
+                        </button>
 
-                <div className="text-right">
-                  <p className="font-bold text-[#d4af37]">{formatPrice(item.price * item.quantity)}</p>
-                  {item.quantity > 1 && (
-                    <p className="text-xs text-white/50 mt-1">{formatPrice(item.price)} each</p>
-                  )}
-                </div>
-              </motion.div>
-            ))}
+                        <span className="w-7 text-center font-medium text-white">{item.quantity}</span>
+
+                        <button
+                          onClick={() => updateQuantity(itemKey, item.quantity + 1)}
+                          className="text-white/70 hover:text-white"
+                          aria-label="Increase quantity"
+                        >
+                          <Plus className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      <button
+                        onClick={() => removeItem(itemKey)}
+                        className="text-white/70 hover:text-red-400 transition-colors"
+                        aria-label="Remove item"
+                        title="Remove"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="text-right">
+                    <p className="font-bold text-[#d4af37]">{formatPrice(item.price * item.quantity)}</p>
+                    {item.quantity > 1 && (
+                      <p className="text-xs text-white/50 mt-1">{formatPrice(item.price)} each</p>
+                    )}
+                  </div>
+                </motion.div>
+              );
+            })}
 
             {/* Coupon section */}
             <div className="bg-black/40 backdrop-blur-sm rounded-xl border border-white/20 p-4">
