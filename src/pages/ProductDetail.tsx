@@ -44,10 +44,10 @@ type Product = {
   image?: string;
   images?: string[];
 
-  price?: number;
-  newPrice?: number;
-  oldPrice?: number;
-  discount?: number;
+  price?: number;          // original price (before discount)
+  newPrice?: number;       // deprecated? fallback
+  oldPrice?: number;       // deprecated? fallback
+  discount?: number;       // discount percentage (0-100)
 
   // can be string (single or comma-separated) or array
   color?: string | string[];
@@ -64,7 +64,7 @@ type Product = {
     height?: number;
   };
 
-  // NEW variant fields
+  // variant fields
   hasVariants?: boolean;
   variants?: Variant[];
   fabricTypes?: string[];
@@ -177,15 +177,28 @@ const ProductDetail = () => {
     }) || null;
   }, [product, hasVariants, selectedColor, selectedSize, selectedFabric, availableColors, availableSizes, availableFabrics]);
 
-  // Determine display price and stock
-  const displayPrice = useMemo(() => {
+  // Get original price (before discount) based on selected variant or product
+  const originalPrice = useMemo(() => {
     if (selectedVariant) return selectedVariant.price;
     return Number(product?.newPrice ?? product?.price ?? 0);
   }, [product, selectedVariant]);
 
+  // Discount percentage (product-level, apply to all variants)
+  const discountPercent = product?.discount ?? 0;
+
+  // Final price after discount
+  const finalPrice = useMemo(() => {
+    const price = originalPrice;
+    if (discountPercent > 0) {
+      return price * (1 - discountPercent / 100);
+    }
+    return price;
+  }, [originalPrice, discountPercent]);
+
+  // Stock quantity (variant or product)
   const displayStock = useMemo(() => {
     if (selectedVariant) return selectedVariant.quantity;
-    return product?.inStock ? 999 : 0; // fallback, but you may have product.quantity
+    return product?.inStock ? 999 : 0;
   }, [product, selectedVariant]);
 
   const inStock = displayStock > 0;
@@ -205,7 +218,7 @@ const ProductDetail = () => {
       style: "currency",
       currency: "INR",
       maximumFractionDigits: 0,
-    }).format(Number(p || 0));
+    }).format(p);
 
   // Auto-select first variant or first options
   useEffect(() => {
@@ -287,7 +300,7 @@ const ProductDetail = () => {
     const cartItem = {
       id: product._id,
       name: productName,
-      price: displayPrice,
+      price: finalPrice,          // send discounted price to cart
       image: images[0],
       variantId: selectedVariant?._id || null,
       attributes,
@@ -312,7 +325,7 @@ const ProductDetail = () => {
       productId: product._id,
       id: product._id,
       name: productName,
-      price: displayPrice,
+      price: finalPrice,          // discounted price for wishlist
       image: images[0],
       type: product?.type || "",
       color: selectedColor,
@@ -383,9 +396,9 @@ const ProductDetail = () => {
                 className="w-full h-full object-cover"
               />
 
-              {product.discount && product.discount > 0 && (
+              {discountPercent > 0 && (
                 <span className="absolute top-4 left-4 bg-[#d4af37] text-[#7a5a1e] text-sm font-bold px-3 py-1 rounded-full">
-                  -{product.discount}%
+                  -{discountPercent}%
                 </span>
               )}
 
@@ -433,9 +446,9 @@ const ProductDetail = () => {
             </div>
 
             <div className="flex items-baseline gap-4">
-              <span className="text-3xl font-bold">{formatPrice(displayPrice)}</span>
-              {product.oldPrice && product.oldPrice > displayPrice && (
-                <span className="text-xl text-white/50 line-through">{formatPrice(product.oldPrice)}</span>
+              <span className="text-3xl font-bold">{formatPrice(finalPrice)}</span>
+              {discountPercent > 0 && (
+                <span className="text-xl text-white/50 line-through">{formatPrice(originalPrice)}</span>
               )}
             </div>
 
@@ -657,7 +670,9 @@ const ProductDetail = () => {
               {related.map((item) => {
                 const name = item.title || item.name || "Product";
                 const img = item.image || item.images?.[0] || "https://via.placeholder.com/600";
-                const p = Number(item.newPrice ?? item.price ?? 0);
+                const original = Number(item.price ?? 0);
+                const discount = item.discount ?? 0;
+                const final = discount > 0 ? original * (1 - discount / 100) : original;
 
                 return (
                   <Link key={item._id} to={`/product/${item._id}`} className="group">
@@ -672,7 +687,12 @@ const ProductDetail = () => {
                     <h4 className="font-medium text-white group-hover:text-[#d4af37] transition-colors">
                       {name}
                     </h4>
-                    <p className="text-[#d4af37] font-bold">{formatPrice(p)}</p>
+                    <div className="flex items-baseline gap-2">
+                      <p className="text-[#d4af37] font-bold">{formatPrice(final)}</p>
+                      {discount > 0 && (
+                        <p className="text-xs text-white/50 line-through">{formatPrice(original)}</p>
+                      )}
+                    </div>
                   </Link>
                 );
               })}
