@@ -1,4 +1,4 @@
-// Header.tsx – full updated version with location storage
+// Header.tsx – full width, buttons after search
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { Search, MapPin, User, Heart, ShoppingBag, Menu, ChevronDown } from "lucide-react";
@@ -16,8 +16,6 @@ import logo from "../../public/JSGALORE.png";
 type MenuKey = "catalog" | "concepts" | "rooms";
 
 const API_BASE = "https://api.jsgallor.com/api";
-
-// ✅ set current website segment here
 const WEBSITE_SEGMENT: "all" | "luxury" = "luxury";
 
 type CategoryItem = {
@@ -50,10 +48,8 @@ async function apiGet<T>(url: string, signal?: AbortSignal): Promise<T> {
   const res = await fetch(url, {
     method: "GET",
     headers: { "Content-Type": "application/json" },
-    // credentials omitted for CORS
     signal,
   });
-
   if (!res.ok) throw new Error(`Request failed (${res.status})`);
   return (await res.json()) as T;
 }
@@ -82,14 +78,11 @@ const Header = () => {
   const [userOpen, setUserOpen] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-
-  // ✅ location state
   const [userLocation, setUserLocation] = useState<{ city: string; pin: string } | null>(null);
 
   const { totalItems } = useCart();
   const { favorites } = useFavorites();
 
-  // ✅ realtime categories
   const [items, setItems] = useState<CategoryItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -106,20 +99,16 @@ const Header = () => {
     [activeMenu]
   );
 
-  // ✅ fetch categories
   useEffect(() => {
     const ac = new AbortController();
-
     (async () => {
       try {
         setLoading(true);
         setErr(null);
-
         const res = await apiGet<CategoriesResponse>(
           `${API_BASE}/admin/categories?segment=all&status=all&level=all&sort=order&page=1&limit=200`,
           ac.signal
         );
-
         setItems(res?.data?.items || []);
       } catch (e: any) {
         if (e?.name === "AbortError") return;
@@ -128,17 +117,14 @@ const Header = () => {
         setLoading(false);
       }
     })();
-
     return () => ac.abort();
   }, []);
 
-  // ✅ segment allow list (luxury website shows: all + luxury)
   const allowedSegments = useMemo(() => {
     if (WEBSITE_SEGMENT === "all") return ["all"];
     return ["all", WEBSITE_SEGMENT];
-  }, [WEBSITE_SEGMENT]);
+  }, []);
 
-  // ✅ apply filters based on your data fields
   const filteredItems = useMemo(() => {
     return (items || []).filter((x) => {
       const seg = String(x.segment || "all").toLowerCase();
@@ -146,14 +132,12 @@ const Header = () => {
     });
   }, [items, allowedSegments]);
 
-  // ✅ navbar parents
   const parents = useMemo(() => {
     return filteredItems
       .filter((x) => x.parentId === null && x.showInNavbar === true)
       .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
   }, [filteredItems]);
 
-  // ✅ children map
   const childrenByParent = useMemo(() => {
     const map = new Map<string, CategoryItem[]>();
     for (const x of filteredItems) {
@@ -185,135 +169,152 @@ const Header = () => {
 
   return (
     <>
-      <header className="sticky top-0 z-50 backdrop-blur-md border-b border-black/20 bg-gradient-to-r from-[#7a5a1e] via-[#d4af37] to-[#7a5a1e] shadow-lg text-white">
-        {/* Top Row */}
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between h-16 lg:h-20">
-            {/* Logo + Menu */}
-            <div className="flex items-center gap-8">
-              <img src={logo} alt="JSGALORE" className="h-8 lg:h-10 object-contain" />
-              <a
-                href="/"
-                className="hidden sm:block text-2xl lg:text-3xl font-heading font-bold tracking-wider text-white"
-              >
-                JS GALLOR
-              </a>
+      <header className="sticky top-0 z-50 backdrop-blur-md border-b border-black/20 bg-gradient-to-r from-[#7a5a1e] via-[#d4af37] to-[#7a5a1e] shadow-lg text-white w-full">
+        {/* Top Row - full width, no side padding */}
+        <div className="flex items-center justify-between px-4 lg:px-6 h-16 lg:h-20 gap-4">
+          {/* Logo */}
+          <div className="flex items-center shrink-0">
+            <img src={logo} alt="JSGALORE" className="h-8 lg:h-10 object-contain" />
+            <a
+              href="/"
+              className="hidden sm:block text-xl lg:text-2xl font-heading font-bold tracking-wider text-white ml-2"
+            >
+              JSGALLOR
+            </a>
+          </div>
 
-              <nav className="hidden lg:flex items-center gap-1">
-                {(["catalog", "concepts", "rooms"] as MenuKey[]).map((menu) => (
-                  <Button
-                    key={menu}
-                    variant="nav"
-                    className={`px-4 py-2 capitalize text-white hover:text-yellow-200 ${
-                      activeMenu === menu && showSecondRow ? "text-yellow-200" : ""
-                    }`}
-                    onClick={() => handleMenuClick(menu)}
-                  >
-                    {menu === "rooms" ? "Select a room" : menu}
-                    <ChevronDown
-                      className={`ml-1 h-4 w-4 transition-transform duration-200 ${
-                        activeMenu === menu && showSecondRow ? "rotate-180" : ""
-                      }`}
-                    />
-                  </Button>
-                ))}
-              </nav>
+          {/* Search - expands */}
+          <div className="flex-1 max-w-md mx-4">
+            <div className="flex items-center gap-2 bg-white/10 rounded-full px-4 py-2 border border-white/20">
+              <Search className="h-4 w-4 text-white shrink-0" />
+              <input
+                type="search"
+                placeholder="I want to find..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="bg-transparent border-none outline-none text-sm w-full placeholder:text-white/70 text-white"
+              />
             </div>
+          </div>
 
-            {/* Right Icons */}
-            <div className="flex items-center gap-3">
-              {/* Search */}
-              <div className="hidden md:flex items-center gap-2 bg-white/10 rounded-full px-4 py-2 border border-white/20">
-                <Search className="h-4 w-4 text-white" />
-                <input
-                  type="search"
-                  placeholder="I want to find..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="bg-transparent border-none outline-none text-sm w-40 lg:w-56 placeholder:text-white/70 text-white"
+          {/* Navigation Buttons (after search) */}
+          <nav className="hidden lg:flex items-center gap-1">
+            {(["catalog", "concepts", "rooms"] as MenuKey[]).map((menu) => (
+              <Button
+                key={menu}
+                variant="nav"
+                className={`px-4 py-2 capitalize text-white hover:text-yellow-200 ${
+                  activeMenu === menu && showSecondRow ? "text-yellow-200" : ""
+                }`}
+                onClick={() => handleMenuClick(menu)}
+              >
+                {menu === "rooms" ? "Select a room" : menu}
+                <ChevronDown
+                  className={`ml-1 h-4 w-4 transition-transform duration-200 ${
+                    activeMenu === menu && showSecondRow ? "rotate-180" : ""
+                  }`}
                 />
-              </div>
+              </Button>
+            ))}
+            <a
+              href="https://essentialstudio.jsgallor.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-4 py-2 text-white hover:text-yellow-200 transition-colors"
+            >
+              Essential Studio
+            </a>
+            <a
+              href="https://signaturespaces.jsgallor.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-4 py-2 text-white hover:text-yellow-200 transition-colors"
+            >
+              Signature Spaces
+            </a>
+          </nav>
 
-              {/* Location with badge */}
-              <div className="relative">
-                <Button
-                  variant="icon"
-                  size="icon"
-                  onClick={() => {
-                    setLocationOpen(!locationOpen);
-                    setUserOpen(false);
-                    setCartOpen(false);
-                  }}
-                  className={`${locationOpen ? "text-yellow-200" : "text-white"} hover:text-yellow-200`}
-                >
-                  <MapPin className="h-5 w-5" />
-                </Button>
-                {userLocation && (
-                  <span className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 text-[8px] bg-black text-white px-1 rounded-full whitespace-nowrap">
-                    {userLocation.city || userLocation.pin}
-                  </span>
-                )}
-              </div>
-
-              {/* User */}
+          {/* Icons */}
+          <div className="flex items-center gap-3 shrink-0">
+            {/* Location with badge */}
+            <div className="relative">
               <Button
                 variant="icon"
                 size="icon"
                 onClick={() => {
-                  setUserOpen(!userOpen);
-                  setLocationOpen(false);
+                  setLocationOpen(!locationOpen);
+                  setUserOpen(false);
                   setCartOpen(false);
                 }}
-                className={`${userOpen ? "text-yellow-200" : "text-white"} hover:text-yellow-200`}
+                className={`${locationOpen ? "text-yellow-200" : "text-white"} hover:text-yellow-200`}
               >
-                <User className="h-5 w-5" />
+                <MapPin className="h-5 w-5" />
               </Button>
+              {userLocation && (
+                <span className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 text-[8px] bg-black text-white px-1 rounded-full whitespace-nowrap">
+                  {userLocation.city || userLocation.pin}
+                </span>
+              )}
+            </div>
 
-              {/* Favorites */}
-              <Link to="/favorites">
-                <Button variant="icon" size="icon" className="hidden sm:flex relative text-white hover:text-yellow-200">
-                  <Heart className="h-5 w-5" />
-                  {favorites.length > 0 && (
-                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-black text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-                      {favorites.length}
-                    </span>
-                  )}
-                </Button>
-              </Link>
+            {/* User */}
+            <Button
+              variant="icon"
+              size="icon"
+              onClick={() => {
+                setUserOpen(!userOpen);
+                setLocationOpen(false);
+                setCartOpen(false);
+              }}
+              className={`${userOpen ? "text-yellow-200" : "text-white"} hover:text-yellow-200`}
+            >
+              <User className="h-5 w-5" />
+            </Button>
 
-              {/* Cart */}
-              <Button
-                variant="icon"
-                size="icon"
-                onClick={() => {
-                  setCartOpen(!cartOpen);
-                  setLocationOpen(false);
-                  setUserOpen(false);
-                }}
-                className={`relative ${cartOpen ? "text-yellow-200" : "text-white"} hover:text-yellow-200`}
-              >
-                <ShoppingBag className="h-5 w-5" />
-                {totalItems > 0 && (
+            {/* Favorites */}
+            <Link to="/favorites">
+              <Button variant="icon" size="icon" className="hidden sm:flex relative text-white hover:text-yellow-200">
+                <Heart className="h-5 w-5" />
+                {favorites.length > 0 && (
                   <span className="absolute -top-1 -right-1 w-4 h-4 bg-black text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-                    {totalItems > 9 ? "9+" : totalItems}
+                    {favorites.length}
                   </span>
                 )}
               </Button>
+            </Link>
 
-              {/* Mobile Menu */}
-              <Button
-                variant="icon"
-                size="icon"
-                className="lg:hidden text-white hover:text-yellow-200"
-                onClick={() => setMobileOpen(true)}
-              >
-                <Menu className="h-5 w-5" />
-              </Button>
-            </div>
+            {/* Cart */}
+            <Button
+              variant="icon"
+              size="icon"
+              onClick={() => {
+                setCartOpen(!cartOpen);
+                setLocationOpen(false);
+                setUserOpen(false);
+              }}
+              className={`relative ${cartOpen ? "text-yellow-200" : "text-white"} hover:text-yellow-200`}
+            >
+              <ShoppingBag className="h-5 w-5" />
+              {totalItems > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-black text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                  {totalItems > 9 ? "9+" : totalItems}
+                </span>
+              )}
+            </Button>
+
+            {/* Mobile Menu */}
+            <Button
+              variant="icon"
+              size="icon"
+              className="lg:hidden text-white hover:text-yellow-200"
+              onClick={() => setMobileOpen(true)}
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
           </div>
         </div>
 
-        {/* Second Row */}
+        {/* Second Row (category links) */}
         <AnimatePresence>
           {showSecondRow && (
             <motion.div
@@ -323,7 +324,7 @@ const Header = () => {
               transition={{ duration: 0.2 }}
               className="hidden lg:block border-t border-white/20 overflow-hidden"
             >
-              <div className="container mx-auto px-4">
+              <div className="px-4 lg:px-6">
                 <nav className="flex items-center gap-6 py-3 text-white">
                   {loading && <span className="text-sm text-white/70">Loading...</span>}
                   {err && <span className="text-sm text-red-300">{err}</span>}
