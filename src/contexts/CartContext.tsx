@@ -17,22 +17,20 @@ export interface CartItem {
   name: string;
   price: number;
   image: string;
-  variantId?: string | null;  // optional variantId
+  variantId?: string | null;
   attributes?: {
     size?: string | null;
     color?: string | null;
     fabric?: string | null;
   };
   quantity: number;
+  cartItemId?: string;        // server cart item ID (for authenticated users)
 }
 
 interface CartContextType {
   items: CartItem[];
-  addItem: (
-    item: Omit<CartItem, "quantity">,
-    quantity?: number
-  ) => void;
-  removeItem: (itemId: string) => void; // now uses composite key or item _id
+  addItem: (item: Omit<CartItem, "quantity">, quantity?: number) => void;
+  removeItem: (itemId: string) => void;
   updateQuantity: (itemId: string, quantity: number) => void;
   clearCart: () => void;
   totalItems: number;
@@ -55,7 +53,7 @@ function safeParse<T>(v: string | null): T | null {
 }
 
 type ServerCartItem = {
-  _id?: string;                // cart item id (if returned from server)
+  _id?: string;
   productId: string | { _id: string; name?: string; price?: number; images?: any };
   variantId?: string | null;
   attributes?: {
@@ -67,6 +65,16 @@ type ServerCartItem = {
   price?: number;
   image?: string;
   quantity: number;
+};
+
+// Helper to generate a stable unique key for an item (based on productId, variant, attributes)
+const getItemMatchKey = (item: CartItem): string => {
+  const base = item.id;
+  const variant = item.variantId || 'null';
+  const color = item.attributes?.color || 'null';
+  const size = item.attributes?.size || 'null';
+  const fabric = item.attributes?.fabric || 'null';
+  return `${base}::${variant}::${color}::${size}::${fabric}`;
 };
 
 export const CartProvider = ({ children }: { children: ReactNode }) => {
@@ -133,6 +141,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
           variantId: it.variantId || null,
           attributes: it.attributes || {},
           quantity: Number(it.quantity || 1),
+          cartItemId: it._id,               // store the server cart item ID
         } as CartItem;
       })
       .filter(Boolean) as CartItem[];
@@ -239,16 +248,6 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     };
   }, [items, token, isAuthenticated, persistLocal, syncNow]);
 
-  // Helper to generate a unique key for an item (for guest mode operations)
-  const getItemKey = (item: { id: string; variantId?: string | null; attributes?: any }) => {
-    const base = item.id;
-    const variant = item.variantId || 'null';
-    const attrColor = item.attributes?.color || 'null';
-    const attrSize = item.attributes?.size || 'null';
-    const attrFabric = item.attributes?.fabric || 'null';
-    return `${base}::${variant}::${attrColor}::${attrSize}::${attrFabric}`;
-  };
-
   // ---------- cart ops ----------
   const addItem = useCallback(
     (newItem: Omit<CartItem, "quantity">, qty: number = 1) => {
@@ -260,9 +259,9 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       const quantityToAdd = Math.max(1, Number(qty) || 1);
 
       setItems((prev) => {
-        // Find existing item with same productId, variantId, and attributes
-        const key = getItemKey(newItem);
-        const idx = prev.findIndex((it) => getItemKey(it) === key);
+        // Find existing item by match key (productId + variant + attributes)
+        const matchKey = getItemMatchKey({ ...newItem, quantity: 1 } as CartItem);
+        const idx = prev.findIndex((it) => getItemMatchKey(it) === matchKey);
 
         if (idx !== -1) {
           const copy = [...prev];
@@ -281,9 +280,14 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   );
 
   const removeItem = useCallback((itemId: string) => {
-    setItems((prev) => prev.filter((_, index) => String(index) !== itemId && getItemKey(prev[index]) !== itemId));
-    // For simplicity, we'll use a composite key; but better to use server _id when available.
-    // We'll implement removal by matching the key.
+    setItems((prev) =>
+      prev.filter((item) => {
+        const matchKey = getItemMatchKey(item);
+        // itemId can be either a cartItemId (server ID) or a match key
+        const matches = (item.cartItemId && item.cartItemId === itemId) || matchKey === itemId;
+        return !matches; // keep items that do NOT match
+      })
+    );
   }, []);
 
   const updateQuantity = useCallback(
@@ -294,7 +298,10 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
       setItems((prev) => {
-        const idx = prev.findIndex((_, i) => String(i) === itemId || getItemKey(prev[i]) === itemId);
+        const idx = prev.findIndex((item) => {
+          const matchKey = getItemMatchKey(item);
+          return (item.cartItemId && item.cartItemId === itemId) || matchKey === itemId;
+        });
         if (idx === -1) return prev;
         const copy = [...prev];
         copy[idx] = { ...copy[idx], quantity: q };

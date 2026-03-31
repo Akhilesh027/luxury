@@ -44,19 +44,17 @@ type Product = {
   image?: string;
   images?: string[];
 
-  price?: number;          // original price (before discount)
-  newPrice?: number;       // deprecated? fallback
-  oldPrice?: number;       // deprecated? fallback
-  discount?: number;       // discount percentage (0-100)
+  price?: number;
+  discount?: number;
 
-  // can be string (single or comma-separated) or array
+  // for simple products
   color?: string | string[];
   size?: string | string[];
+  quantity?: number;        // stock quantity for simple product
+  inStock?: boolean;        // fallback
 
   category?: string;
   type?: string;
-
-  inStock?: boolean;
 
   dimensions?: {
     width?: number;
@@ -100,7 +98,6 @@ async function apiFetch(path: string, options: RequestInit = {}) {
   return json;
 }
 
-// Helper to get color name from hex (for display)
 const getColorName = (hex: string) => {
   const colors: Record<string, string> = {
     "#8B7355": "Brown",
@@ -130,9 +127,10 @@ const ProductDetail = () => {
 
   const productName = product?.title || product?.name || "Product";
 
-  // Compute available options from variants (if any)
-  const hasVariants = product?.hasVariants && !!product?.variants?.length;
+  // Determine if product has variants
+  const hasVariants = !!(product?.variants && product.variants.length > 0) || product?.hasVariants === true;
 
+  // Compute available options from variants (if any)
   const availableColors = useMemo(() => {
     if (hasVariants && product?.variants) {
       const colors = new Set<string>();
@@ -180,7 +178,7 @@ const ProductDetail = () => {
   // Get original price (before discount) based on selected variant or product
   const originalPrice = useMemo(() => {
     if (selectedVariant) return selectedVariant.price;
-    return Number(product?.newPrice ?? product?.price ?? 0);
+    return Number(product?.price ?? 0);
   }, [product, selectedVariant]);
 
   // Discount percentage (product-level, apply to all variants)
@@ -195,13 +193,28 @@ const ProductDetail = () => {
     return price;
   }, [originalPrice, discountPercent]);
 
-  // Stock quantity (variant or product)
+  // Stock display logic
   const displayStock = useMemo(() => {
-    if (selectedVariant) return selectedVariant.quantity;
+    if (hasVariants) {
+      // For variant products, only consider variant stock
+      return selectedVariant ? selectedVariant.quantity : 0;
+    }
+    // Simple product: use quantity if available, otherwise fallback to inStock boolean
+    if (typeof product?.quantity === 'number') return product.quantity;
     return product?.inStock ? 999 : 0;
-  }, [product, selectedVariant]);
+  }, [product, hasVariants, selectedVariant]);
 
-  const inStock = displayStock > 0;
+  const inStock = hasVariants ? (selectedVariant && selectedVariant.quantity > 0) : (displayStock > 0);
+
+  const requireColor = availableColors.length > 1;
+  const requireSize = availableSizes.length > 1;
+  const requireFabric = availableFabrics.length > 1;
+
+  const allOptionsSelected = !hasVariants || (
+    (!requireColor || selectedColor) &&
+    (!requireSize || selectedSize) &&
+    (!requireFabric || selectedFabric)
+  );
 
   const images = useMemo(() => {
     let list: string[] = [];
@@ -222,12 +235,20 @@ const ProductDetail = () => {
 
   // Auto-select first variant or first options
   useEffect(() => {
-    if (hasVariants && product?.variants && product.variants.length > 0) {
-      const first = product.variants[0];
-      setSelectedColor(first.attributes.color || "");
-      setSelectedSize(first.attributes.size || "");
-      setSelectedFabric(first.attributes.fabric || "");
+    if (!product) return;
+
+    if (hasVariants && product.variants && product.variants.length > 0) {
+      // Try to pick a variant with stock, else just the first
+      let variantToSelect = product.variants.find(v => v.quantity > 0);
+      if (!variantToSelect) variantToSelect = product.variants[0];
+
+      if (variantToSelect) {
+        setSelectedColor(variantToSelect.attributes.color || "");
+        setSelectedSize(variantToSelect.attributes.size || "");
+        setSelectedFabric(variantToSelect.attributes.fabric || "");
+      }
     } else {
+      // Non‑variant product: set defaults if only one option exists
       if (availableColors.length === 1) setSelectedColor(availableColors[0]);
       if (availableSizes.length === 1) setSelectedSize(availableSizes[0]);
       if (availableFabrics.length === 1) setSelectedFabric(availableFabrics[0]);
@@ -265,10 +286,6 @@ const ProductDetail = () => {
     })();
   }, [id]);
 
-  const requireColor = availableColors.length > 1;
-  const requireSize = availableSizes.length > 1;
-  const requireFabric = availableFabrics.length > 1;
-
   const validateSelections = () => {
     if (requireColor && !selectedColor) {
       toast({ title: "Select a color", description: "Please choose a color to continue." });
@@ -300,7 +317,7 @@ const ProductDetail = () => {
     const cartItem = {
       id: product._id,
       name: productName,
-      price: finalPrice,          // send discounted price to cart
+      price: finalPrice,
       image: images[0],
       variantId: selectedVariant?._id || null,
       attributes,
@@ -325,7 +342,7 @@ const ProductDetail = () => {
       productId: product._id,
       id: product._id,
       name: productName,
-      price: finalPrice,          // discounted price for wishlist
+      price: finalPrice,
       image: images[0],
       type: product?.type || "",
       color: selectedColor,
@@ -584,8 +601,20 @@ const ProductDetail = () => {
             {/* Stock status */}
             <div className="text-sm">
               <span className="text-white/70">Availability:</span>{" "}
-              <span className={inStock ? "text-green-300" : "text-red-300"}>
-                {inStock ? `In Stock (${displayStock})` : "Out of Stock"}
+              <span
+                className={
+                  hasVariants && !selectedVariant
+                    ? "text-yellow-300"
+                    : inStock
+                    ? "text-green-300"
+                    : "text-red-300"
+                }
+              >
+                {hasVariants && !selectedVariant
+                  ? "Select options to see availability"
+                  : inStock
+                  ? `In Stock (${displayStock})`
+                  : "Out of Stock"}
               </span>
             </div>
 
@@ -603,7 +632,7 @@ const ProductDetail = () => {
                 <button
                   onClick={() => setQuantity(quantity + 1)}
                   className="text-white/70 hover:text-white"
-                  disabled={!inStock || quantity >= displayStock}
+                  disabled={!inStock || (hasVariants && selectedVariant && quantity >= selectedVariant.quantity)}
                 >
                   <Plus className="w-5 h-5" />
                 </button>
@@ -613,10 +642,14 @@ const ProductDetail = () => {
                 className="flex-1 bg-white text-[#7a5a1e] hover:bg-[#d4af37] hover:text-white border-0"
                 size="xl"
                 onClick={handleAddToCart}
-                disabled={!inStock || (hasVariants && !selectedVariant)}
+                disabled={!inStock || (hasVariants && !allOptionsSelected)}
               >
                 <ShoppingBag className="w-5 h-5 mr-2" />
-                {!inStock ? "Out of Stock" : "Add to Cart"}
+                {!inStock
+                  ? "Out of Stock"
+                  : hasVariants && !allOptionsSelected
+                  ? "Select Options"
+                  : "Add to Cart"}
               </Button>
             </div>
 

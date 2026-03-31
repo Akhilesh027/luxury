@@ -21,16 +21,16 @@ const Favorites = () => {
 
   if (favorites.length === 0) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-[#af8e36] text-white">
         <Header />
         <main className="container mx-auto px-4 py-20 text-center">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
           >
-            <Heart className="w-20 h-20 text-muted-foreground mx-auto mb-6" />
+            <Heart className="w-20 h-20 text-white/70 mx-auto mb-6" />
             <h1 className="text-3xl font-heading font-bold mb-4">No favorites yet</h1>
-            <p className="text-muted-foreground mb-8">
+            <p className="text-white/80 mb-8">
               Start adding products to your wishlist to save them for later.
             </p>
             <Link to="/catalog">
@@ -46,10 +46,10 @@ const Favorites = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-[#af8e36] text-white">
       <Header />
       <main className="container mx-auto px-4 py-8">
-        <h1 className="text-3xl lg:text-4xl font-heading font-bold mb-8">
+        <h1 className="text-3xl lg:text-4xl font-heading font-bold mb-8 text-white">
           My Favorites ({favorites.length})
         </h1>
 
@@ -62,7 +62,7 @@ const Favorites = () => {
               transition={{ delay: index * 0.1 }}
               className="group"
             >
-              <div className="relative aspect-square rounded-xl overflow-hidden bg-secondary/20 mb-4">
+              <div className="relative aspect-square rounded-xl overflow-hidden bg-white/10 mb-4">
                 <Link to={`/product/${item.id}`}>
                   <img
                     src={item.image}
@@ -72,17 +72,19 @@ const Favorites = () => {
                 </Link>
                 <button
                   onClick={() => removeFavorite(item.id)}
-                  className="absolute top-3 right-3 w-9 h-9 rounded-full bg-card/80 backdrop-blur-sm flex items-center justify-center hover:bg-destructive hover:text-destructive-foreground transition-colors"
+                  className="absolute top-3 right-3 w-9 h-9 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center hover:bg-destructive hover:text-destructive-foreground transition-colors text-white"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>
 
-              <p className="text-sm text-muted-foreground">{item.type}</p>
+              <p className="text-sm text-white/80">{item.type}</p>
               <Link to={`/product/${item.id}`}>
-                <h3 className="font-semibold hover:text-gold transition-colors">{item.name}</h3>
+                <h3 className="font-semibold hover:text-gold transition-colors text-white">
+                  {item.name}
+                </h3>
               </Link>
-              <p className="text-gold font-bold mt-1">{formatPrice(item.price)}</p>
+              <p className="text-white font-bold mt-1">{formatPrice(item.price)}</p>
 
               <Button
                 variant="gold-outline"

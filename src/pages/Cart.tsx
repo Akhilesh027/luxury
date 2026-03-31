@@ -1,3 +1,4 @@
+// src/pages/Cart.tsx
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -15,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import { useCart } from "@/contexts/CartContext";
+import { useCart, CartItem } from "@/contexts/CartContext";
 import { toast } from "sonner";
 
 const WEBSITE: "affordable" | "midrange" | "luxury" = "luxury";
@@ -71,7 +72,7 @@ function getSavedUserId(): string | null {
   }
 }
 
-// Helper to get color name from hex (optional)
+// Helper to get color name from hex
 const getColorName = (hex: string) => {
   const colors: Record<string, string> = {
     "#8B7355": "Brown",
@@ -106,6 +107,19 @@ const Cart = () => {
   const shipping = Math.max(0, shippingBase - shippingDiscount);
   const finalTotal = Math.max(0, totalPrice - discount) + shipping;
 
+  // Helper to generate a stable identifier for an item (same as context's getItemMatchKey)
+  const getItemIdentifier = (item: CartItem): string => {
+    // If the item has a server cart item ID, use that
+    if (item.cartItemId) return item.cartItemId;
+    // Otherwise build a composite key
+    const base = item.id;
+    const variant = item.variantId || 'null';
+    const color = item.attributes?.color || 'null';
+    const size = item.attributes?.size || 'null';
+    const fabric = item.attributes?.fabric || 'null';
+    return `${base}::${variant}::${color}::${size}::${fabric}`;
+  };
+
   useEffect(() => {
     try {
       const saved = localStorage.getItem(LS_COUPON_KEY);
@@ -133,7 +147,6 @@ const Cart = () => {
     localStorage.removeItem(LS_COUPON_KEY);
   };
 
-  // Build rich item payload for category-specific coupons
   const buildCouponItemsPayload = () => {
     return items.map((item: any) => {
       const qty = Number(item?.quantity || 1);
@@ -144,7 +157,7 @@ const Cart = () => {
         quantity: qty,
         price: unitPrice,
         lineTotal: unitPrice * qty,
-        categoryId: item?.product?.categoryId, // simplified – adjust as needed
+        categoryId: item?.product?.categoryId,
         productSnapshot: {
           price: unitPrice,
         },
@@ -261,6 +274,16 @@ const Cart = () => {
   }, [totalPrice, shippingBase, items.length]);
 
   const goToCheckout = () => {
+    // Check if user is logged in
+    const token = getToken();
+    const userId = getSavedUserId();
+    if (!token || !userId) {
+      toast.error("Please login to proceed to checkout");
+      navigate("/login?redirect=/cart");
+      return;
+    }
+
+    // Continue with existing checkout logic
     const payload = {
       coupon: couponApplied
         ? {
@@ -356,19 +379,15 @@ const Cart = () => {
 
         <div className="grid lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-4">
-            {items.map((item: any, index: number) => {
-              // Generate a unique key for cart operations
-              // If the item has a server _id (from the cart context), use it; otherwise build a composite.
-              const itemKey = item._id || `${item.id}|${item.variantId || ''}|${item.attributes?.color || ''}|${item.attributes?.size || ''}|${item.attributes?.fabric || ''}`;
-
-              // Extract attributes
+            {items.map((item, index) => {
+              const identifier = getItemIdentifier(item);
               const color = item.attributes?.color;
               const size = item.attributes?.size;
               const fabric = item.attributes?.fabric;
 
               return (
                 <motion.div
-                  key={itemKey}
+                  key={identifier}
                   initial={{ opacity: 0, y: 18 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.05 }}
@@ -425,7 +444,7 @@ const Cart = () => {
                     <div className="flex items-center justify-between mt-4">
                       <div className="flex items-center gap-3 bg-white/5 rounded-lg px-3 py-1">
                         <button
-                          onClick={() => updateQuantity(itemKey, item.quantity - 1)}
+                          onClick={() => updateQuantity(identifier, item.quantity - 1)}
                           className="text-white/70 hover:text-white"
                           aria-label="Decrease quantity"
                           disabled={item.quantity <= 1}
@@ -436,7 +455,7 @@ const Cart = () => {
                         <span className="w-7 text-center font-medium text-white">{item.quantity}</span>
 
                         <button
-                          onClick={() => updateQuantity(itemKey, item.quantity + 1)}
+                          onClick={() => updateQuantity(identifier, item.quantity + 1)}
                           className="text-white/70 hover:text-white"
                           aria-label="Increase quantity"
                         >
@@ -445,7 +464,7 @@ const Cart = () => {
                       </div>
 
                       <button
-                        onClick={() => removeItem(itemKey)}
+                        onClick={() => removeItem(identifier)}
                         className="text-white/70 hover:text-red-400 transition-colors"
                         aria-label="Remove item"
                         title="Remove"

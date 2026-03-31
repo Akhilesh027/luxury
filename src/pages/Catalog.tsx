@@ -19,12 +19,10 @@ type Product = {
   type?: string;
   category?: string;
   subcategory?: string;
-  room?: string;
-  material?: string;
-  style?: string;
   image?: string;
   images?: string[];
-  colors?: string[];
+  color?: string | string[];     // may be a single hex or an array
+  colors?: string[];             // alternative field
   oldPrice?: number;
   newPrice?: number;
   price?: number;
@@ -41,6 +39,34 @@ const pickImage = (p: Product) => p.image || (Array.isArray(p.images) ? p.images
 const pickNewPrice = (p: Product) =>
   typeof p.newPrice === "number" ? p.newPrice : typeof p.price === "number" ? p.price : 0;
 
+// Extract all unique colors from products (supports both `color` and `colors` fields)
+const getUniqueColors = (products: Product[]): string[] => {
+  const colorsSet = new Set<string>();
+  products.forEach(p => {
+    let colors: string[] = [];
+    if (Array.isArray(p.color)) colors = p.color;
+    else if (typeof p.color === "string") colors = [p.color];
+    else if (Array.isArray(p.colors)) colors = p.colors;
+    colors.forEach(c => colorsSet.add(c));
+  });
+  return Array.from(colorsSet);
+};
+
+// Map hex to human‑readable names (optional, extend as needed)
+const getColorName = (hex: string) => {
+  const colors: Record<string, string> = {
+    "#8B7355": "Brown",
+    "#1C1C1C": "Black",
+    "#F5E6D3": "White",
+    "#4A4A4A": "Grey",
+    "#4A6741": "Green",
+    "#2C3E50": "Blue",
+    "#C0C0C0": "Silver",
+    "#FFD700": "Gold",
+  };
+  return colors[hex.toUpperCase()] || hex;
+};
+
 const Catalog = () => {
   const { categorySlug, subCategorySlug } = useParams<{
     categorySlug?: string;
@@ -54,9 +80,8 @@ const Catalog = () => {
 
   const { isFavorite, toggleFavorite } = useFavorites();
 
-  const activeRoom = searchParams.get("room");
-  const activeMaterial = searchParams.get("material");
-  const activeStyle = searchParams.get("style");
+  // URL filter values
+  const activeColor = searchParams.get("color");
   const activePriceMin = searchParams.get("priceMin");
   const activePriceMax = searchParams.get("priceMax");
 
@@ -67,6 +92,7 @@ const Catalog = () => {
   const [loading, setLoading] = useState(true);
   const [errMsg, setErrMsg] = useState<string | null>(null);
 
+  // Fetch products
   useEffect(() => {
     let mounted = true;
 
@@ -77,7 +103,6 @@ const Catalog = () => {
 
         const token = getToken();
         const res = await fetch(`${API_BASE}/products?status=approved&tier=luxury&limit=200`, {
-          method: "GET",
           headers: {
             "Content-Type": "application/json",
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -115,36 +140,39 @@ const Catalog = () => {
     };
   }, []);
 
+  // Sync URL with category/subcategory from route
   useEffect(() => {
     const newParams = new URLSearchParams(searchParams);
-
     if (activeCategorySlug) newParams.set("category", activeCategorySlug);
     else newParams.delete("category");
-
     if (activeSubSlug) newParams.set("subcategory", activeSubSlug);
     else newParams.delete("subcategory");
+    if (newParams.toString() !== searchParams.toString())
+      setSearchParams(newParams, { replace: true });
+  }, [activeCategorySlug, activeSubSlug, searchParams, setSearchParams]);
 
-    const before = searchParams.toString();
-    const after = newParams.toString();
-    if (before !== after) setSearchParams(newParams, { replace: true });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeCategorySlug, activeSubSlug]);
+  // Compute available colors from products
+  const availableColors = useMemo(() => getUniqueColors(products), [products]);
 
+  // Filter products based on URL params
   const filteredProducts = useMemo(() => {
     let result = [...products];
 
     if (activeCategorySlug) {
       result = result.filter((p) => norm(p.category) === norm(activeCategorySlug));
     }
-
     if (activeSubSlug) {
       result = result.filter((p) => norm((p as any).subcategory) === norm(activeSubSlug));
     }
-
-    if (activeRoom) result = result.filter((p) => norm(p.room) === norm(activeRoom));
-    if (activeMaterial) result = result.filter((p) => norm(p.material) === norm(activeMaterial));
-    if (activeStyle) result = result.filter((p) => norm(p.style) === norm(activeStyle));
-
+    if (activeColor) {
+      result = result.filter((p) => {
+        let productColors: string[] = [];
+        if (Array.isArray(p.color)) productColors = p.color;
+        else if (typeof p.color === "string") productColors = [p.color];
+        else if (Array.isArray(p.colors)) productColors = p.colors;
+        return productColors.some(c => c === activeColor);
+      });
+    }
     if (activePriceMin && activePriceMax) {
       const min = Number(activePriceMin);
       const max = Number(activePriceMax);
@@ -173,9 +201,7 @@ const Catalog = () => {
     products,
     activeCategorySlug,
     activeSubSlug,
-    activeRoom,
-    activeMaterial,
-    activeStyle,
+    activeColor,
     activePriceMin,
     activePriceMax,
     sortBy,
@@ -205,20 +231,17 @@ const Catalog = () => {
   const hasActiveFilters =
     !!activeCategorySlug ||
     !!activeSubSlug ||
-    !!activeRoom ||
-    !!activeMaterial ||
-    !!activeStyle ||
+    !!activeColor ||
     !!activePriceMin;
 
   return (
     <div className="min-h-screen bg-gradient-to-r from-[#7a5a1e] via-[#d4af37] to-[#7a5a1e] relative overflow-x-hidden">
-      {/* Soft overlay for text contrast */}
       <div className="absolute inset-0 bg-white/5 backdrop-blur-[2px]" />
 
       <Header />
 
       <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 relative z-10">
-        {/* Header */}
+        {/* Header with title and controls */}
         <div className="mb-6 sm:mb-8 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="min-w-0">
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-heading font-bold text-white drop-shadow-lg break-words">
@@ -239,7 +262,6 @@ const Catalog = () => {
             >
               <Grid className="w-5 h-5" />
             </Button>
-
             <Button
               variant="icon"
               size="icon"
@@ -248,7 +270,6 @@ const Catalog = () => {
             >
               <List className="w-5 h-5" />
             </Button>
-
             <Button
               variant="outline"
               onClick={() => setShowFilters(!showFilters)}
@@ -264,12 +285,19 @@ const Catalog = () => {
           {/* Filters Sidebar */}
           <aside
             className={`${
-              showFilters ? "fixed inset-0 z-50 bg-black/90 backdrop-blur-xl p-4 sm:p-6 overflow-y-auto" : "hidden"
+              showFilters
+                ? "fixed inset-0 z-50 bg-black/90 backdrop-blur-xl p-4 sm:p-6 overflow-y-auto"
+                : "hidden"
             } lg:block lg:relative lg:w-64 lg:flex-shrink-0`}
           >
             <div className="flex items-center justify-between mb-6 lg:hidden">
               <h2 className="text-xl font-heading font-bold text-white">Filters</h2>
-              <Button variant="icon" size="icon" onClick={() => setShowFilters(false)} className="text-white">
+              <Button
+                variant="icon"
+                size="icon"
+                onClick={() => setShowFilters(false)}
+                className="text-white"
+              >
                 <X className="w-5 h-5" />
               </Button>
             </div>
@@ -285,6 +313,7 @@ const Catalog = () => {
                 </Button>
               )}
 
+              {/* Category/subcategory context */}
               {(activeCategorySlug || activeSubSlug) && (
                 <div className="rounded-xl border border-white/20 bg-black/40 backdrop-blur-sm p-4 mb-6">
                   <p className="text-sm text-white/70">Browsing</p>
@@ -300,43 +329,27 @@ const Catalog = () => {
                 </div>
               )}
 
-              <FilterSection title="Room">
-                {filterOptions.rooms.map((room) => (
-                  <FilterItem
-                    key={room.value}
-                    label={room.label}
-                    active={activeRoom === room.value}
-                    onClick={() => setFilter("room", activeRoom === room.value ? null : room.value)}
-                  />
-                ))}
-              </FilterSection>
+              {/* Color Filter – only shown when colors exist */}
+              {availableColors.length > 0 && (
+                <FilterSection title="Color">
+                  {availableColors.map((color) => (
+                    <FilterItem
+                      key={color}
+                      label={getColorName(color)}
+                      active={activeColor === color}
+                      onClick={() => setFilter("color", activeColor === color ? null : color)}
+                      icon={
+                        <span
+                          className="inline-block w-3 h-3 rounded-full mr-2"
+                          style={{ backgroundColor: color }}
+                        />
+                      }
+                    />
+                  ))}
+                </FilterSection>
+              )}
 
-              <FilterSection title="Material">
-                {filterOptions.materials.map((mat) => (
-                  <FilterItem
-                    key={mat.value}
-                    label={mat.label}
-                    active={activeMaterial === mat.value}
-                    onClick={() =>
-                      setFilter("material", activeMaterial === mat.value ? null : mat.value)
-                    }
-                  />
-                ))}
-              </FilterSection>
-
-              <FilterSection title="Style">
-                {filterOptions.styles.map((style) => (
-                  <FilterItem
-                    key={style.value}
-                    label={style.label}
-                    active={activeStyle === style.value}
-                    onClick={() =>
-                      setFilter("style", activeStyle === style.value ? null : style.value)
-                    }
-                  />
-                ))}
-              </FilterSection>
-
+              {/* Price Range Filter */}
               <FilterSection title="Price Range">
                 {filterOptions.priceRanges.map((range, idx) => (
                   <FilterItem
@@ -367,9 +380,9 @@ const Catalog = () => {
             </div>
           </aside>
 
-          {/* Product Grid */}
+          {/* Product Grid / List */}
           <div className="flex-1 min-w-0">
-            {/* Sort */}
+            {/* Sort Control */}
             <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-sm text-white/80">Sort by:</span>
@@ -498,13 +511,11 @@ const Catalog = () => {
                         <p className="text-sm text-white/70">
                           {product.type || "Luxury"}
                         </p>
-
                         <Link to={`/product/${id}`}>
                           <h3 className="font-semibold text-white hover:text-[#d4af37] transition-colors break-words line-clamp-2">
                             {title}
                           </h3>
                         </Link>
-
                         <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-1">
                           {typeof oldPrice === "number" && oldPrice > newPrice && (
                             <span className="text-white/50 line-through text-sm">
@@ -513,7 +524,6 @@ const Catalog = () => {
                           )}
                           <span className="text-[#d4af37] font-bold">{formatPrice(newPrice)}</span>
                         </div>
-
                         {viewMode === "list" && (
                           <p className="text-sm text-white/70 mt-2 line-clamp-3">
                             {product.description || "—"}
@@ -542,7 +552,6 @@ const FilterSection = ({
   children: React.ReactNode;
 }) => {
   const [isOpen, setIsOpen] = useState(true);
-
   return (
     <div className="border-b border-white/10 pb-4 mb-4">
       <button
@@ -550,7 +559,11 @@ const FilterSection = ({
         className="flex items-center justify-between w-full py-2 font-medium text-left text-white"
       >
         <span>{title}</span>
-        <ChevronDown className={`w-4 h-4 transition-transform text-white/70 ${isOpen ? "rotate-180" : ""}`} />
+        <ChevronDown
+          className={`w-4 h-4 transition-transform text-white/70 ${
+            isOpen ? "rotate-180" : ""
+          }`}
+        />
       </button>
       {isOpen && <div className="mt-2 space-y-2">{children}</div>}
     </div>
@@ -561,20 +574,23 @@ const FilterItem = ({
   label,
   active,
   onClick,
+  icon,
 }: {
   label: string;
   active: boolean;
   onClick: () => void;
+  icon?: React.ReactNode;
 }) => (
   <button
     onClick={onClick}
-    className={`block w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
+    className={`flex items-center gap-2 w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
       active
         ? "bg-[#d4af37]/20 text-[#d4af37]"
         : "text-white/70 hover:bg-white/10 hover:text-white"
     }`}
   >
-    {label}
+    {icon}
+    <span>{label}</span>
   </button>
 );
 

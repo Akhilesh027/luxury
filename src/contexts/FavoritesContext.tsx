@@ -12,7 +12,7 @@ import { useAuth } from "@/contexts/auth-context";
 /* ================= TYPES ================= */
 
 export interface FavoriteItem {
-  id: string;          // ✅ MongoDB product _id
+  id: string;          // product ID (MongoDB _id)
   name: string;
   price: number;
   image: string;
@@ -70,6 +70,8 @@ export const FavoritesProvider = ({ children }: { children: ReactNode }) => {
 
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.message || "Request failed");
+      // Backend returns { success: true, wishlist: [...] }
+      if (!data.success) throw new Error(data.message || "Operation failed");
       return data;
     },
     [token]
@@ -81,20 +83,21 @@ export const FavoritesProvider = ({ children }: { children: ReactNode }) => {
 
     try {
       const data = await apiFetch("/wishlist", { method: "GET" });
-      const list: FavoriteItem[] = Array.isArray(data?.wishlist)
-        ? data.wishlist.map((w: any) => ({
-            id: w.productId._id,
-            name: w.productId.name || w.productId.title,
-            price: w.productId.price || w.productId.newPrice || 0,
-            image: w.productId.image || w.productId.images?.[0],
-            type: w.productId.type || "",
-          }))
-        : [];
+      // The backend returns `wishlist` array where each item has:
+      // productId, name, price, image, type, addedAt
+      const list: FavoriteItem[] = (data.wishlist || []).map((w: any) => ({
+        id: w.productId,        // product ID (string)
+        name: w.name,
+        price: w.price,
+        image: w.image,
+        type: w.type,
+      }));
 
       setFavorites(list);
       localStorage.setItem(WISHLIST_KEY, JSON.stringify(list));
-    } catch {
-      /* silent fail */
+    } catch (err) {
+      console.error("Failed to load wishlist", err);
+      // silent fail, keep local data
     }
   }, [apiFetch, token]);
 
@@ -110,6 +113,7 @@ export const FavoritesProvider = ({ children }: { children: ReactNode }) => {
     async (item: FavoriteItem) => {
       if (favorites.some((f) => f.id === item.id)) return;
 
+      // Optimistically update local state
       setFavorites((prev) => {
         const next = [...prev, item];
         localStorage.setItem(WISHLIST_KEY, JSON.stringify(next));
@@ -119,14 +123,27 @@ export const FavoritesProvider = ({ children }: { children: ReactNode }) => {
       if (!token) return;
 
       try {
-        await apiFetch("/wishlist", {
+        const data = await apiFetch("/wishlist", {
           method: "POST",
           body: JSON.stringify({ productId: item.id }),
         });
-      } catch {
+        // Sync with server response (full updated wishlist)
+        const serverList = (data.wishlist || []).map((w: any) => ({
+          id: w.productId,
+          name: w.name,
+          price: w.price,
+          image: w.image,
+          type: w.type,
+        }));
+        setFavorites(serverList);
+        localStorage.setItem(WISHLIST_KEY, JSON.stringify(serverList));
+      } catch (err) {
+        // Rollback optimistic update
+        setFavorites((prev) => prev.filter((f) => f.id !== item.id));
+        localStorage.setItem(WISHLIST_KEY, JSON.stringify(favorites.filter((f) => f.id !== item.id)));
         toast({
           title: "Wishlist error",
-          description: "Failed to save wishlist item",
+          description: err instanceof Error ? err.message : "Failed to add to wishlist",
           variant: "destructive",
         });
       }
@@ -137,6 +154,7 @@ export const FavoritesProvider = ({ children }: { children: ReactNode }) => {
   /* ---------- Remove ---------- */
   const removeFavorite = useCallback(
     async (id: string) => {
+      // Optimistically update
       setFavorites((prev) => {
         const next = prev.filter((item) => item.id !== id);
         localStorage.setItem(WISHLIST_KEY, JSON.stringify(next));
@@ -146,16 +164,28 @@ export const FavoritesProvider = ({ children }: { children: ReactNode }) => {
       if (!token) return;
 
       try {
-        await apiFetch(`/wishlist/${id}`, { method: "DELETE" });
-      } catch {
+        const data = await apiFetch(`/wishlist/${id}`, { method: "DELETE" });
+        // Sync with server response
+        const serverList = (data.wishlist || []).map((w: any) => ({
+          id: w.productId,
+          name: w.name,
+          price: w.price,
+          image: w.image,
+          type: w.type,
+        }));
+        setFavorites(serverList);
+        localStorage.setItem(WISHLIST_KEY, JSON.stringify(serverList));
+      } catch (err) {
+        // Rollback: re-fetch current state from server (or restore previous)
+        await loadWishlist(); // re-fetch to restore correct state
         toast({
           title: "Wishlist error",
-          description: "Failed to remove wishlist item",
+          description: err instanceof Error ? err.message : "Failed to remove from wishlist",
           variant: "destructive",
         });
       }
     },
-    [apiFetch, token]
+    [apiFetch, token, loadWishlist]
   );
 
   /* ---------- Checks ---------- */

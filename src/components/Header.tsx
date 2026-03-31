@@ -1,21 +1,21 @@
-// Header.tsx – full width, buttons after search
+// Header.tsx – updated to navigate to /auth or /profile
 import { useEffect, useMemo, useState, useCallback } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom"; // add useNavigate
 import { Search, MapPin, User, Heart, ShoppingBag, Menu, ChevronDown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/contexts/CartContext";
 import { useFavorites } from "@/contexts/FavoritesContext";
+import { useAuth } from "@/contexts/auth-context"; // import useAuth
 import MegaMenu from "./MegaMenu";
 import MobileDrawer from "./MobileDrawer";
 import LocationPanel from "./LocationPanel";
-import UserPanel from "./UserPanel";
 import CartPanel from "./CartPanel";
 import logo from "../../public/JSGALORE.png";
 
 type MenuKey = "catalog" | "concepts" | "rooms";
 
-const API_BASE = "https://api.jsgallor.com/api";
+const API_BASE = "http://localhost:5000/api";
 const WEBSITE_SEGMENT: "all" | "luxury" = "luxury";
 
 type CategoryItem = {
@@ -70,12 +70,13 @@ function buildMegaMenuData(parent: CategoryItem, children: CategoryItem[]) {
 }
 
 const Header = () => {
+  const navigate = useNavigate();
+  const { isAuthenticated } = useAuth(); // get authentication state
   const [activeMenu, setActiveMenu] = useState<MenuKey>("catalog");
   const [hoveredParentId, setHoveredParentId] = useState<string | null>(null);
   const [showSecondRow, setShowSecondRow] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [locationOpen, setLocationOpen] = useState(false);
-  const [userOpen, setUserOpen] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [userLocation, setUserLocation] = useState<{ city: string; pin: string } | null>(null);
@@ -86,6 +87,14 @@ const Header = () => {
   const [items, setItems] = useState<CategoryItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+
+  const handleUserClick = () => {
+    if (isAuthenticated) {
+      navigate("/profile");
+    } else {
+      navigate("/auth");
+    }
+  };
 
   const handleMenuClick = useCallback(
     (menu: MenuKey) => {
@@ -170,7 +179,7 @@ const Header = () => {
   return (
     <>
       <header className="sticky top-0 z-50 backdrop-blur-md border-b border-black/20 bg-gradient-to-r from-[#7a5a1e] via-[#d4af37] to-[#7a5a1e] shadow-lg text-white w-full">
-        {/* Top Row - full width, no side padding */}
+        {/* Top Row */}
         <div className="flex items-center justify-between px-4 lg:px-6 h-16 lg:h-20 gap-4">
           {/* Logo */}
           <div className="flex items-center shrink-0">
@@ -183,7 +192,7 @@ const Header = () => {
             </a>
           </div>
 
-          {/* Search - expands */}
+          {/* Search */}
           <div className="flex-1 max-w-md mx-4">
             <div className="flex items-center gap-2 bg-white/10 rounded-full px-4 py-2 border border-white/20">
               <Search className="h-4 w-4 text-white shrink-0" />
@@ -197,9 +206,9 @@ const Header = () => {
             </div>
           </div>
 
-          {/* Navigation Buttons (after search) */}
+          {/* Navigation Buttons */}
           <nav className="hidden lg:flex items-center gap-1">
-            {(["catalog", "concepts", "rooms"] as MenuKey[]).map((menu) => (
+            {(["catalog"] as MenuKey[]).map((menu) => (
               <Button
                 key={menu}
                 variant="nav"
@@ -216,34 +225,38 @@ const Header = () => {
                 />
               </Button>
             ))}
-            <a
-              href="https://essentialstudio.jsgallor.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-4 py-2 text-white hover:text-yellow-200 transition-colors"
-            >
-              Essential Studio
-            </a>
-            <a
-              href="https://signaturespaces.jsgallor.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-4 py-2 text-white hover:text-yellow-200 transition-colors"
-            >
-              Signature Spaces
-            </a>
+
+            {/* External links as buttons (using asChild) */}
+            <Button asChild className="bg-[#6f5424] text-white hover:bg-[#5c451e] transition-colors">
+              <a
+                href="https://essentialstudio.jsgallor.com"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Essential Studio
+              </a>
+            </Button>
+
+            <Button asChild className="bg-[#6f5424] text-white hover:bg-[#5c451e] transition-colors">
+              <a
+                href="https://signaturespaces.jsgallor.com"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Signature Spaces
+              </a>
+            </Button>
           </nav>
 
           {/* Icons */}
           <div className="flex items-center gap-3 shrink-0">
-            {/* Location with badge */}
+            {/* Location */}
             <div className="relative">
               <Button
                 variant="icon"
                 size="icon"
                 onClick={() => {
                   setLocationOpen(!locationOpen);
-                  setUserOpen(false);
                   setCartOpen(false);
                 }}
                 className={`${locationOpen ? "text-yellow-200" : "text-white"} hover:text-yellow-200`}
@@ -257,16 +270,12 @@ const Header = () => {
               )}
             </div>
 
-            {/* User */}
+            {/* User – now navigates instead of opening panel */}
             <Button
               variant="icon"
               size="icon"
-              onClick={() => {
-                setUserOpen(!userOpen);
-                setLocationOpen(false);
-                setCartOpen(false);
-              }}
-              className={`${userOpen ? "text-yellow-200" : "text-white"} hover:text-yellow-200`}
+              onClick={handleUserClick}
+              className="text-white hover:text-yellow-200"
             >
               <User className="h-5 w-5" />
             </Button>
@@ -290,7 +299,6 @@ const Header = () => {
               onClick={() => {
                 setCartOpen(!cartOpen);
                 setLocationOpen(false);
-                setUserOpen(false);
               }}
               className={`relative ${cartOpen ? "text-yellow-200" : "text-white"} hover:text-yellow-200`}
             >
@@ -364,7 +372,6 @@ const Header = () => {
           />
         )}
       </AnimatePresence>
-      <AnimatePresence>{userOpen && <UserPanel onClose={() => setUserOpen(false)} />}</AnimatePresence>
       <AnimatePresence>{cartOpen && <CartPanel onClose={() => setCartOpen(false)} />}</AnimatePresence>
 
       <MobileDrawer

@@ -19,6 +19,7 @@ import OrderSuccess from "./pages/OrderSuccess";
 import Orders from "./pages/Orders";
 import OrderDetails from "./pages/OrderDetails";
 import ProfilePage from "./pages/profile";
+import AuthPage from "./components/Authpage";
 
 const queryClient = new QueryClient();
 
@@ -55,6 +56,7 @@ const App = () => (
 
                 <Route path="/product/:id" element={<ProductDetail />} />
                 <Route path="/cart" element={<Cart />} />
+                <Route path="/auth" element={<AuthPage />} />
                 <Route path="/checkout" element={<Checkout />} />
                 <Route path="/favorites" element={<Favorites />} />
                 <Route path="/order-success" element={<OrderSuccess />} />

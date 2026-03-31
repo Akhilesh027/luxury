@@ -291,12 +291,13 @@ const ProfilePage = () => {
 
   if (authLoading || (isAuthenticated && !user)) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-gradient-to-r from-[#7a5a1e] via-[#d4af37] to-[#7a5a1e] relative">
+        <div className="absolute inset-0 bg-white/5 backdrop-blur-[2px]" />
         <Header />
-        <main className="container mx-auto px-4 py-20">
-          <div className="rounded-2xl border border-border/50 bg-secondary/20 p-6 flex items-center gap-3">
-            <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">Loading your profile...</p>
+        <main className="container mx-auto px-4 py-20 relative z-10">
+          <div className="rounded-2xl border border-white/20 bg-black/40 backdrop-blur-sm p-6 flex items-center gap-3">
+            <Loader2 className="w-5 h-5 animate-spin text-white/70" />
+            <p className="text-sm text-white/80">Loading your profile...</p>
           </div>
         </main>
         <Footer />
@@ -305,26 +306,27 @@ const ProfilePage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gradient-to-r from-[#7a5a1e] via-[#d4af37] to-[#7a5a1e] relative">
+      <div className="absolute inset-0 bg-white/5 backdrop-blur-[2px]" />
       <Header />
 
-      <main className="container mx-auto px-4 py-10">
+      <main className="container mx-auto px-4 py-10 relative z-10">
         {/* ✅ 3 column layout so right can be sticky */}
         <div className="grid gap-8 lg:grid-cols-[320px_1fr_340px]">
           {/* Left sidebar (sticky) */}
           <aside className="lg:sticky lg:top-24 h-fit">
-            <div className="bg-card rounded-2xl border border-border/50 p-6">
+            <div className="bg-black/40 backdrop-blur-sm rounded-2xl border border-white/20 p-6">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-full bg-gold/15 flex items-center justify-center">
-                  <User className="w-6 h-6 text-gold" />
+                <div className="w-12 h-12 rounded-full bg-[#d4af37]/20 flex items-center justify-center">
+                  <User className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <p className="font-heading font-bold text-xl">
+                  <p className="font-heading font-bold text-xl text-white">
                     {user?.fullName ||
                       `${user?.firstName || ""} ${user?.lastName || ""}`.trim() ||
                       "Customer"}
                   </p>
-                  <p className="text-sm text-muted-foreground">{user?.email}</p>
+                  <p className="text-sm text-white/80">{user?.email}</p>
                 </div>
               </div>
 
@@ -352,8 +354,12 @@ const ProfilePage = () => {
                 </SideBtn>
               </div>
 
-              <div className="mt-6 pt-6 border-t border-border/50">
-                <Button variant="gold" className="w-full" onClick={handleLogout}>
+              <div className="mt-6 pt-6 border-t border-white/20">
+                <Button
+                  variant="gold"
+                  className="w-full bg-white text-[#7a5a1e] hover:bg-[#d4af37] hover:text-white border-0"
+                  onClick={handleLogout}
+                >
                   <LogOut className="w-5 h-5 mr-2" />
                   Logout
                 </Button>
@@ -379,11 +385,13 @@ const ProfilePage = () => {
                   <InfoCard label="Platform" value={user?.platform || "luxury"} />
                 </div>
 
-                <div className="bg-card rounded-2xl border border-border/50 p-6">
-                  <h3 className="font-heading font-bold text-lg mb-3">Default Address</h3>
+                <div className="bg-black/40 backdrop-blur-sm rounded-2xl border border-white/20 p-6">
+                  <h3 className="font-heading font-bold text-lg text-white mb-3">
+                    Default Address
+                  </h3>
                   {defaultAddress ? (
-                    <div className="text-sm text-muted-foreground leading-relaxed">
-                      <p className="font-medium text-foreground mb-1">
+                    <div className="text-sm text-white/80 leading-relaxed">
+                      <p className="font-medium text-white mb-1">
                         {defaultAddress.label || "Home"}
                       </p>
                       <p>
@@ -399,17 +407,21 @@ const ProfilePage = () => {
                       <p>{defaultAddress.country || "India"}</p>
                       <Button
                         variant="outline"
-                        className="mt-4"
+                        className="mt-4 border-white text-white hover:bg-white hover:text-[#7a5a1e]"
                         onClick={() => setTab("addresses")}
                       >
                         Manage Addresses <ChevronRight className="w-4 h-4 ml-2" />
                       </Button>
                     </div>
                   ) : (
-                    <div className="text-sm text-muted-foreground">
+                    <div className="text-sm text-white/80">
                       No address saved yet.
                       <div className="mt-3">
-                        <Button variant="gold" onClick={() => setTab("addresses")}>
+                        <Button
+                          variant="gold"
+                          className="bg-white text-[#7a5a1e] hover:bg-[#d4af37] hover:text-white border-0"
+                          onClick={() => setTab("addresses")}
+                        >
                           Add Address
                         </Button>
                       </div>
@@ -435,49 +447,80 @@ const ProfilePage = () => {
                     desc="When you place an order, it will appear here."
                     action={
                       <Link to="/catalog">
-                        <Button variant="gold">Start Shopping</Button>
+                        <Button
+                          variant="gold"
+                          className="bg-white text-[#7a5a1e] hover:bg-[#d4af37] hover:text-white border-0"
+                        >
+                          Start Shopping
+                        </Button>
                       </Link>
                     }
                   />
                 ) : (
                   <div className="space-y-4">
                     {orders.map((o) => (
-                      <div key={o._id} className="bg-card rounded-2xl border border-border/50 p-5">
+                      <div
+                        key={o._id}
+                        className="bg-black/40 backdrop-blur-sm rounded-2xl border border-white/20 p-5"
+                      >
                         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                           <div>
-                            <p className="font-heading font-bold text-lg">
-                              {o.orderNumber || `Order #${o._id.slice(-6).toUpperCase()}`}
+                            <p className="font-heading font-bold text-lg text-white">
+                              {o.orderNumber ||
+                                `Order #${o._id.slice(-6).toUpperCase()}`}
                             </p>
-                            <p className="text-sm text-muted-foreground">
-                              {formatDate(o.createdAt)} • Payment: {o.payment?.method || "—"} • Status:{" "}
-                              <span className="text-foreground font-medium">{o.status}</span>
+                            <p className="text-sm text-white/80">
+                              {formatDate(o.createdAt)} • Payment:{" "}
+                              {o.payment?.method || "—"} • Status:{" "}
+                              <span className="text-white font-medium">
+                                {o.status}
+                              </span>
                             </p>
                           </div>
                           <div className="text-right">
-                            <p className="text-sm text-muted-foreground">Total</p>
-                            <p className="text-lg font-bold text-gold">{formatMoney(o.pricing?.total)}</p>
+                            <p className="text-sm text-white/80">Total</p>
+                            <p className="text-lg font-bold text-white">
+                              {formatMoney(o.pricing?.total)}
+                            </p>
                           </div>
                         </div>
 
                         <div className="mt-4 grid md:grid-cols-2 gap-4">
-                          <div className="rounded-xl border border-border/50 bg-secondary/20 p-4">
-                            <p className="text-sm font-medium mb-2">Delivery Address</p>
-                            <p className="text-sm text-muted-foreground leading-relaxed">
+                          <div className="rounded-xl border border-white/20 bg-white/5 p-4">
+                            <p className="text-sm font-medium text-white mb-2">
+                              Delivery Address
+                            </p>
+                            <p className="text-sm text-white/80 leading-relaxed">
                               {o.shippingAddress?.addressLine1}
-                              {o.shippingAddress?.addressLine2 ? `, ${o.shippingAddress.addressLine2}` : ""}
+                              {o.shippingAddress?.addressLine2
+                                ? `, ${o.shippingAddress.addressLine2}`
+                                : ""}
                               <br />
-                              {o.shippingAddress?.city}, {o.shippingAddress?.state} - {o.shippingAddress?.pincode}
+                              {o.shippingAddress?.city}, {o.shippingAddress?.state} -{" "}
+                              {o.shippingAddress?.pincode}
                               <br />
                               {o.shippingAddress?.country || "India"}
                             </p>
                           </div>
 
-                          <div className="rounded-xl border border-border/50 bg-secondary/20 p-4">
-                            <p className="text-sm font-medium mb-2">Pricing</p>
-                            <div className="text-sm text-muted-foreground space-y-1">
-                              <Row label="Subtotal" value={formatMoney(o.pricing?.subtotal)} />
-                              <Row label="Shipping" value={formatMoney(o.pricing?.shipping)} />
-                              <Row label="Total" value={formatMoney(o.pricing?.total)} strong />
+                          <div className="rounded-xl border border-white/20 bg-white/5 p-4">
+                            <p className="text-sm font-medium text-white mb-2">
+                              Pricing
+                            </p>
+                            <div className="text-sm text-white/80 space-y-1">
+                              <Row
+                                label="Subtotal"
+                                value={formatMoney(o.pricing?.subtotal)}
+                              />
+                              <Row
+                                label="Shipping"
+                                value={formatMoney(o.pricing?.shipping)}
+                              />
+                              <Row
+                                label="Total"
+                                value={formatMoney(o.pricing?.total)}
+                                strong
+                              />
                             </div>
                           </div>
                         </div>
@@ -495,8 +538,15 @@ const ProfilePage = () => {
                 className="space-y-6"
               >
                 <div className="flex items-start justify-between gap-3">
-                  <CardTitle title="My Addresses" subtitle="Manage shipping addresses" />
-                  <Button variant="gold" onClick={openAddAddress}>
+                  <CardTitle
+                    title="My Addresses"
+                    subtitle="Manage shipping addresses"
+                  />
+                  <Button
+                    variant="gold"
+                    className="bg-white text-[#7a5a1e] hover:bg-[#d4af37] hover:text-white border-0"
+                    onClick={openAddAddress}
+                  >
                     <Plus className="w-4 h-4 mr-2" />
                     Add New
                   </Button>
@@ -509,7 +559,11 @@ const ProfilePage = () => {
                     title="No addresses"
                     desc="Add your first address to speed up checkout."
                     action={
-                      <Button variant="gold" onClick={openAddAddress}>
+                      <Button
+                        variant="gold"
+                        className="bg-white text-[#7a5a1e] hover:bg-[#d4af37] hover:text-white border-0"
+                        onClick={openAddAddress}
+                      >
                         Add Address
                       </Button>
                     }
@@ -517,18 +571,23 @@ const ProfilePage = () => {
                 ) : (
                   <div className="grid md:grid-cols-2 gap-4">
                     {addresses.map((a) => (
-                      <div key={a._id} className="bg-card rounded-2xl border border-border/50 p-5">
+                      <div
+                        key={a._id}
+                        className="bg-black/40 backdrop-blur-sm rounded-2xl border border-white/20 p-5"
+                      >
                         <div className="flex items-start justify-between gap-3">
                           <div>
                             <div className="flex items-center gap-2">
-                              <p className="font-heading font-bold">{a.label || "Address"}</p>
+                              <p className="font-heading font-bold text-white">
+                                {a.label || "Address"}
+                              </p>
                               {a.isDefault && (
-                                <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400">
+                                <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300">
                                   Default
                                 </span>
                               )}
                             </div>
-                            <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
+                            <p className="text-sm text-white/80 mt-2 leading-relaxed">
                               {a.addressLine1}
                               {a.addressLine2 ? `, ${a.addressLine2}` : ""}
                               <br />
@@ -538,7 +597,11 @@ const ProfilePage = () => {
                             </p>
                           </div>
 
-                          <Button variant="outline" onClick={() => openEditAddress(a)}>
+                          <Button
+                            variant="outline"
+                            className="border-white text-white hover:bg-white hover:text-[#7a5a1e]"
+                            onClick={() => openEditAddress(a)}
+                          >
                             <Pencil className="w-4 h-4 mr-2" />
                             Edit
                           </Button>
@@ -553,59 +616,83 @@ const ProfilePage = () => {
 
           {/* ✅ Right sticky panel (won't move) */}
           <aside className="hidden lg:block lg:sticky lg:top-24 h-fit">
-            <div className="bg-card rounded-2xl border border-border/50 p-6 space-y-5">
+            <div className="bg-black/40 backdrop-blur-sm rounded-2xl border border-white/20 p-6 space-y-5">
               <div>
-                <p className="text-xs text-muted-foreground">Quick Summary</p>
-                <p className="font-heading font-bold text-lg mt-1">
+                <p className="text-xs text-white/70">Quick Summary</p>
+                <p className="font-heading font-bold text-lg text-white mt-1">
                   {user?.fullName ||
                     `${user?.firstName || ""} ${user?.lastName || ""}`.trim() ||
                     "Customer"}
                 </p>
-                <p className="text-sm text-muted-foreground">{user?.email}</p>
-                <p className="text-sm text-muted-foreground">{user?.phone}</p>
+                <p className="text-sm text-white/80">{user?.email}</p>
+                <p className="text-sm text-white/80">{user?.phone}</p>
               </div>
 
-              <div className="rounded-xl border border-border/50 bg-secondary/20 p-4">
-                <p className="text-sm font-medium mb-2">Default Address</p>
+              <div className="rounded-xl border border-white/20 bg-white/5 p-4">
+                <p className="text-sm font-medium text-white mb-2">Default Address</p>
                 {defaultAddress ? (
-                  <p className="text-sm text-muted-foreground leading-relaxed">
+                  <p className="text-sm text-white/80 leading-relaxed">
                     {defaultAddress.addressLine1}
-                    {defaultAddress.addressLine2 ? `, ${defaultAddress.addressLine2}` : ""}
+                    {defaultAddress.addressLine2
+                      ? `, ${defaultAddress.addressLine2}`
+                      : ""}
                     <br />
-                    {defaultAddress.city}, {defaultAddress.state} - {defaultAddress.pincode}
+                    {defaultAddress.city}, {defaultAddress.state} -{" "}
+                    {defaultAddress.pincode}
                   </p>
                 ) : (
-                  <p className="text-sm text-muted-foreground">No address saved.</p>
+                  <p className="text-sm text-white/80">No address saved.</p>
                 )}
 
-                <Button variant="outline" className="w-full mt-3" onClick={() => setTab("addresses")}>
+                <Button
+                  variant="outline"
+                  className="w-full mt-3 border-white text-white hover:bg-white hover:text-[#7a5a1e]"
+                  onClick={() => setTab("addresses")}
+                >
                   Manage Addresses
                 </Button>
               </div>
 
-              <div className="rounded-xl border border-border/50 bg-secondary/20 p-4">
-                <p className="text-sm font-medium mb-2">Latest Order</p>
+              <div className="rounded-xl border border-white/20 bg-white/5 p-4">
+                <p className="text-sm font-medium text-white mb-2">Latest Order</p>
                 {loadingOrders ? (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <div className="flex items-center gap-2 text-sm text-white/80">
                     <Loader2 className="w-4 h-4 animate-spin" /> Loading...
                   </div>
                 ) : latestOrder ? (
-                  <div className="text-sm text-muted-foreground space-y-1">
-                    <p className="text-foreground font-medium">
-                      {latestOrder.orderNumber || `#${latestOrder._id.slice(-6).toUpperCase()}`}
+                  <div className="text-sm text-white/80 space-y-1">
+                    <p className="text-white font-medium">
+                      {latestOrder.orderNumber ||
+                        `#${latestOrder._id.slice(-6).toUpperCase()}`}
                     </p>
                     <p>{formatDate(latestOrder.createdAt)}</p>
-                    <p>Status: <span className="text-foreground font-medium">{latestOrder.status}</span></p>
-                    <p className="text-gold font-bold">{formatMoney(latestOrder.pricing?.total)}</p>
-                    <Button variant="outline" className="w-full mt-3" onClick={() => setTab("orders")}>
+                    <p>
+                      Status:{" "}
+                      <span className="text-white font-medium">
+                        {latestOrder.status}
+                      </span>
+                    </p>
+                    <p className="text-white font-bold">
+                      {formatMoney(latestOrder.pricing?.total)}
+                    </p>
+                    <Button
+                      variant="outline"
+                      className="w-full mt-3 border-white text-white hover:bg-white hover:text-[#7a5a1e]"
+                      onClick={() => setTab("orders")}
+                    >
                       View All Orders
                     </Button>
                   </div>
                 ) : (
-                  <div className="text-sm text-muted-foreground">
+                  <div className="text-sm text-white/80">
                     No orders yet.
                     <Link to="/catalog">
-                      <Button variant="gold" className="w-full mt-3">Shop Now</Button>
+                      <Button
+                        variant="gold"
+                        className="w-full mt-3 bg-white text-[#7a5a1e] hover:bg-[#d4af37] hover:text-white border-0"
+                      >
+                        Shop Now
+                      </Button>
                     </Link>
                   </div>
                 )}
@@ -615,29 +702,71 @@ const ProfilePage = () => {
         </div>
       </main>
 
-      {/* Address Modal (same as your code) */}
+      {/* Address Modal */}
       {showAddressForm && (
-        <div className="fixed inset-0 z-50 bg-background/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-xl bg-card rounded-2xl border border-border/50 shadow-elevated overflow-hidden">
-            <div className="p-5 border-b border-border/50 flex items-center justify-between">
-              <h3 className="text-lg font-heading font-bold">{editing ? "Edit Address" : "Add New Address"}</h3>
-              <Button variant="ghost" onClick={() => setShowAddressForm(false)}>
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-xl bg-[#987626] rounded-2xl border border-white/20 shadow-elevated overflow-hidden">
+            <div className="p-5 border-b border-white/20 flex items-center justify-between">
+              <h3 className="text-lg font-heading font-bold text-white">
+                {editing ? "Edit Address" : "Add New Address"}
+              </h3>
+              <Button
+                variant="ghost"
+                onClick={() => setShowAddressForm(false)}
+                className="text-white hover:text-white/80"
+              >
                 Close
               </Button>
             </div>
 
             <div className="p-5 space-y-4">
-              <InputField label="Label (Home/Office)" value={addressForm.label} onChange={(v) => setAddressForm({ ...addressForm, label: v })} />
-              <InputField label="Address Line 1" value={addressForm.addressLine1} onChange={(v) => setAddressForm({ ...addressForm, addressLine1: v })} required />
-              <InputField label="City" value={addressForm.city} onChange={(v) => setAddressForm({ ...addressForm, city: v })} required />
-              <InputField label="State" value={addressForm.state} onChange={(v) => setAddressForm({ ...addressForm, state: v })} required />
-              <InputField label="PIN Code" value={addressForm.pincode} onChange={(v) => setAddressForm({ ...addressForm, pincode: v })} required />
+              <InputField
+                label="Label (Home/Office)"
+                value={addressForm.label}
+                onChange={(v) => setAddressForm({ ...addressForm, label: v })}
+              />
+              <InputField
+                label="Address Line 1"
+                value={addressForm.addressLine1}
+                onChange={(v) =>
+                  setAddressForm({ ...addressForm, addressLine1: v })
+                }
+                required
+              />
+              <InputField
+                label="City"
+                value={addressForm.city}
+                onChange={(v) => setAddressForm({ ...addressForm, city: v })}
+                required
+              />
+              <InputField
+                label="State"
+                value={addressForm.state}
+                onChange={(v) => setAddressForm({ ...addressForm, state: v })}
+                required
+              />
+              <InputField
+                label="PIN Code"
+                value={addressForm.pincode}
+                onChange={(v) => setAddressForm({ ...addressForm, pincode: v })}
+                required
+              />
 
               <div className="flex gap-3 pt-2">
-                <Button variant="outline" className="flex-1" onClick={() => setShowAddressForm(false)} disabled={savingAddress}>
+                <Button
+                  variant="outline"
+                  className="flex-1 border-white text-white hover:bg-white hover:text-[#7a5a1e]"
+                  onClick={() => setShowAddressForm(false)}
+                  disabled={savingAddress}
+                >
                   Cancel
                 </Button>
-                <Button variant="gold" className="flex-1" onClick={saveAddress} disabled={savingAddress}>
+                <Button
+                  variant="gold"
+                  className="flex-1 bg-white text-[#7a5a1e] hover:bg-[#d4af37] hover:text-white border-0"
+                  onClick={saveAddress}
+                  disabled={savingAddress}
+                >
                   {savingAddress ? "Saving..." : "Save Address"}
                 </Button>
               </div>
@@ -651,12 +780,14 @@ const ProfilePage = () => {
   );
 };
 
-// ----- small UI helpers (same as before) -----
+// ----- small UI helpers (updated styles) -----
 function CardTitle({ title, subtitle }: { title: string; subtitle?: string }) {
   return (
     <div>
-      <h1 className="text-2xl lg:text-3xl font-heading font-bold">{title}</h1>
-      {subtitle && <p className="text-sm text-muted-foreground mt-1">{subtitle}</p>}
+      <h1 className="text-2xl lg:text-3xl font-heading font-bold text-white">
+        {title}
+      </h1>
+      {subtitle && <p className="text-sm text-white/80 mt-1">{subtitle}</p>}
     </div>
   );
 }
@@ -677,12 +808,12 @@ function SideBtn({
       onClick={onClick}
       className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl border transition-colors ${
         active
-          ? "border-gold bg-gold/10 text-foreground"
-          : "border-border/50 bg-secondary/10 text-muted-foreground hover:bg-secondary/20"
+          ? "border-white bg-white/10 text-white"
+          : "border-white/20 bg-black/20 text-white/80 hover:bg-white/10"
       }`}
     >
       <div className="flex items-center gap-3">
-        <span className={active ? "text-gold" : "text-muted-foreground"}>{icon}</span>
+        <span className={active ? "text-white" : "text-white/80"}>{icon}</span>
         <span className="text-sm font-medium">{children}</span>
       </div>
       <ChevronRight className="w-4 h-4 opacity-60" />
@@ -692,18 +823,18 @@ function SideBtn({
 
 function InfoCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-border/50 bg-card p-5">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="text-base font-medium mt-1">{value}</p>
+    <div className="rounded-2xl border border-white/20 bg-black/40 backdrop-blur-sm p-5">
+      <p className="text-xs text-white/70">{label}</p>
+      <p className="text-base font-medium text-white mt-1">{value}</p>
     </div>
   );
 }
 
 function LoadingBox({ text }: { text: string }) {
   return (
-    <div className="rounded-2xl border border-border/50 bg-secondary/20 p-6 flex items-center gap-3">
-      <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-      <p className="text-sm text-muted-foreground">{text}</p>
+    <div className="rounded-2xl border border-white/20 bg-black/40 backdrop-blur-sm p-6 flex items-center gap-3">
+      <Loader2 className="w-5 h-5 animate-spin text-white/70" />
+      <p className="text-sm text-white/80">{text}</p>
     </div>
   );
 }
@@ -718,18 +849,30 @@ function EmptyBox({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="rounded-2xl border border-border/50 bg-secondary/20 p-6">
-      <p className="font-heading font-bold text-lg">{title}</p>
-      <p className="text-sm text-muted-foreground mt-1">{desc}</p>
+    <div className="rounded-2xl border border-white/20 bg-black/40 backdrop-blur-sm p-6">
+      <p className="font-heading font-bold text-lg text-white">{title}</p>
+      <p className="text-sm text-white/80 mt-1">{desc}</p>
       {action && <div className="mt-4">{action}</div>}
     </div>
   );
 }
 
-function Row({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
+function Row({
+  label,
+  value,
+  strong,
+}: {
+  label: string;
+  value: string;
+  strong?: boolean;
+}) {
   return (
-    <div className={`flex justify-between ${strong ? "font-medium text-foreground" : ""}`}>
-      <span className="text-muted-foreground">{label}</span>
+    <div
+      className={`flex justify-between ${
+        strong ? "font-medium text-white" : "text-white/80"
+      }`}
+    >
+      <span className="text-white/70">{label}</span>
       <span>{value}</span>
     </div>
   );
@@ -752,14 +895,14 @@ function InputField({
 }) {
   return (
     <div>
-      <label className="block text-sm font-medium mb-2">{label}</label>
+      <label className="block text-sm font-medium text-white mb-2">{label}</label>
       <input
         type={type}
         placeholder={placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         required={required}
-        className="w-full px-4 py-3 bg-secondary/30 border border-border/50 rounded-lg outline-none focus:border-gold transition-colors"
+        className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg outline-none focus:border-white/60 transition-colors text-white placeholder:text-white/60"
       />
     </div>
   );
