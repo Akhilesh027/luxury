@@ -2,13 +2,6 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
 import { Phone, User } from "lucide-react";
 
@@ -31,7 +24,7 @@ export const PhoneNumberModal = ({ open, onOpenChange }: PhoneNumberModalProps) 
   const missingLastName = !user?.lastName;
   const missingPhone = !user?.phone;
 
-  // Pre-fill if user already has some data (e.g., after Google login, might have firstName from fullName)
+  // Pre-fill if user already has some data
   useEffect(() => {
     if (user) {
       if (user.firstName) setFirstName(user.firstName);
@@ -40,11 +33,37 @@ export const PhoneNumberModal = ({ open, onOpenChange }: PhoneNumberModalProps) 
     }
   }, [user]);
 
+  // Block body scroll when modal is open
+  useEffect(() => {
+    if (open) {
+      document.body.style.overflow = 'hidden';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [open]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validate phone if it's being updated (only if missing or user entered something)
-    if (missingPhone || phone) {
+    // Validate required fields
+    if (missingFirstName && !firstName.trim()) {
+      toast({
+        title: "First Name Required",
+        description: "Please enter your first name.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (missingLastName && !lastName.trim()) {
+      toast({
+        title: "Last Name Required",
+        description: "Please enter your last name.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (missingPhone) {
       const phoneRegex = /^[0-9]{10}$/;
       if (!phoneRegex.test(phone)) {
         toast({
@@ -65,7 +84,7 @@ export const PhoneNumberModal = ({ open, onOpenChange }: PhoneNumberModalProps) 
       if (missingPhone && phone.trim()) updateData.phone = phone.trim();
 
       if (Object.keys(updateData).length === 0) {
-        // Nothing to update – just close
+        // Nothing to update – just close (shouldn't happen if missing fields exist)
         onOpenChange(false);
         return;
       }
@@ -76,9 +95,8 @@ export const PhoneNumberModal = ({ open, onOpenChange }: PhoneNumberModalProps) 
           title: "Profile Updated",
           description: "Your information has been saved successfully.",
         });
-        onOpenChange(false);
-        // Refresh user data to ensure UI reflects changes
-        await getProfile();
+        onOpenChange(false); // Close modal only after successful save
+        await getProfile(); // Refresh user data
       } else {
         throw new Error("Failed to update profile");
       }
@@ -93,27 +111,18 @@ export const PhoneNumberModal = ({ open, onOpenChange }: PhoneNumberModalProps) 
     }
   };
 
-  const handleSkip = () => {
-    sessionStorage.setItem("skipPhoneModalLuxury", "true");
-    onOpenChange(false);
-  };
-
-  if (!user) return null;
-
-  // If no fields are missing, we don't need to show the modal at all
-  if (!missingFirstName && !missingLastName && !missingPhone) {
+  // Don't render if no missing fields or modal not open
+  if (!open || !user || (!missingFirstName && !missingLastName && !missingPhone)) {
     return null;
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md bg-black border border-gold-500/20 text-white">
-        <DialogHeader>
-          <DialogTitle className="text-gold-500">Complete Your Profile</DialogTitle>
-          <DialogDescription className="text-white/60">
-            Please provide the following information to help us serve you better.
-          </DialogDescription>
-        </DialogHeader>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+      <div className="bg-black border border-gold-500/20 rounded-lg shadow-lg w-full max-w-md p-6">
+        <h2 className="text-xl font-semibold text-gold-500 mb-2">Complete Your Profile</h2>
+        <p className="text-sm text-white/60 mb-6">
+          Please provide the following information to continue.
+        </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* First Name */}
@@ -175,26 +184,17 @@ export const PhoneNumberModal = ({ open, onOpenChange }: PhoneNumberModalProps) 
             </div>
           )}
 
-          <div className="flex gap-3 justify-end">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={handleSkip}
-              disabled={loading}
-              className="text-white/60 hover:text-white hover:bg-white/10"
-            >
-              Skip for now
-            </Button>
+          <div className="flex justify-end">
             <Button
               type="submit"
               disabled={loading}
-              className="bg-gold-500 text-white hover:bg-gold-600"
+              className="bg-gold-500 text-white hover:bg-gold-600 w-full sm:w-auto"
             >
               {loading ? "Saving..." : "Save"}
             </Button>
           </div>
         </form>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </div>
   );
 };
