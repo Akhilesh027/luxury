@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { roomsData } from "@/data/siteData";
+import { Link } from "react-router-dom";
 
 const RoomsSection = () => {
   return (
@@ -12,6 +13,7 @@ const RoomsSection = () => {
           Choose a Room
         </h2>
 
+       <Link to='/catalog'>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4 lg:gap-6">
           {roomsData.map((room, index) => (
             <motion.div
@@ -48,7 +50,7 @@ const RoomsSection = () => {
               </div>
             </motion.div>
           ))}
-        </div>
+        </div></Link>
       </div>
     </section>
   );
