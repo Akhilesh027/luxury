@@ -20,6 +20,7 @@ import Orders from "./pages/Orders";
 import OrderDetails from "./pages/OrderDetails";
 import ProfilePage from "./pages/profile";
 import AuthPage from "./components/Authpage";
+import ResetPassword from "./components/resetpassword";
 
 const queryClient = new QueryClient();
 
@@ -53,7 +54,7 @@ const App = () => (
                   path="/catalog/:categorySlug/:subCategorySlug"
                   element={<Catalog />}
                 />
-
+<Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/product/:id" element={<ProductDetail />} />
                 <Route path="/cart" element={<Cart />} />
                 <Route path="/auth" element={<AuthPage />} />
