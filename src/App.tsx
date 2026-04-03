@@ -34,6 +34,28 @@ const ScrollToTop = () => {
   return null;
 };
 
+// Floating WhatsApp component
+const FloatingWhatsApp = () => {
+  const whatsappNumber = "917075848516"; // Country code +91 followed by 7075848516
+  const whatsappLink = `https://wa.me/${whatsappNumber}`;
+
+  return (
+    <a
+      href={whatsappLink}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="fixed bottom-6 right-6 bg-green-500 rounded-full p-3 shadow-lg hover:bg-green-600 transition-all duration-300 z-50 focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-offset-2"
+      aria-label="Chat with us on WhatsApp"
+    >
+      <img
+        src="https://img.icons8.com/color/48/000000/whatsapp--v1.png"
+        alt="WhatsApp"
+        className="w-6 h-6 md:w-7 md:h-7"
+      />
+    </a>
+  );
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
@@ -44,7 +66,7 @@ const App = () => (
             <Sonner />
             <BrowserRouter>
               <ScrollToTop />
-
+              <FloatingWhatsApp /> {/* Global WhatsApp button */}
               <Routes>
                 <Route path="/" element={<Index />} />
 
@@ -54,7 +76,7 @@ const App = () => (
                   path="/catalog/:categorySlug/:subCategorySlug"
                   element={<Catalog />}
                 />
-<Route path="/reset-password" element={<ResetPassword />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/product/:id" element={<ProductDetail />} />
                 <Route path="/cart" element={<Cart />} />
                 <Route path="/auth" element={<AuthPage />} />
