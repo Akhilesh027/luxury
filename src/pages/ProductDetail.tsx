@@ -46,6 +46,8 @@ type Product = {
 
   price?: number;
   discount?: number;
+  gst?: number;               // ✅ GST percentage
+  isCustomized?: boolean;     // ✅ customization flag
 
   // for simple products
   color?: string | string[];
@@ -196,10 +198,8 @@ const ProductDetail = () => {
   // Stock display logic
   const displayStock = useMemo(() => {
     if (hasVariants) {
-      // For variant products, only consider variant stock
       return selectedVariant ? selectedVariant.quantity : 0;
     }
-    // Simple product: use quantity if available, otherwise fallback to inStock boolean
     if (typeof product?.quantity === 'number') return product.quantity;
     return product?.inStock ? 999 : 0;
   }, [product, hasVariants, selectedVariant]);
@@ -238,7 +238,6 @@ const ProductDetail = () => {
     if (!product) return;
 
     if (hasVariants && product.variants && product.variants.length > 0) {
-      // Try to pick a variant with stock, else just the first
       let variantToSelect = product.variants.find(v => v.quantity > 0);
       if (!variantToSelect) variantToSelect = product.variants[0];
 
@@ -248,7 +247,6 @@ const ProductDetail = () => {
         setSelectedFabric(variantToSelect.attributes.fabric || "");
       }
     } else {
-      // Non‑variant product: set defaults if only one option exists
       if (availableColors.length === 1) setSelectedColor(availableColors[0]);
       if (availableSizes.length === 1) setSelectedSize(availableSizes[0]);
       if (availableFabrics.length === 1) setSelectedFabric(availableFabrics[0]);
@@ -264,7 +262,6 @@ const ProductDetail = () => {
         const p: Product = data?.product || data;
         setProduct(p);
 
-        // related products by category
         if (p?.category) {
           const rel = await apiFetch(`/products?category=${encodeURIComponent(p.category)}&limit=8`);
           const list: Product[] = Array.isArray(rel?.products) ? rel.products : [];
@@ -304,20 +301,22 @@ const ProductDetail = () => {
 
   const handleAddToCart = () => {
     if (!product?._id) return;
-
     if (!validateSelections()) return;
 
-    // Build attributes object
     const attributes: { size?: string; color?: string; fabric?: string } = {};
     if (selectedSize) attributes.size = selectedSize;
     if (selectedColor) attributes.color = selectedColor;
     if (selectedFabric) attributes.fabric = selectedFabric;
 
-    // Prepare item for cart
+    // ✅ Prepare cart item with GST and customization flag
     const cartItem = {
       id: product._id,
       name: productName,
       price: finalPrice,
+      originalPrice: originalPrice,
+      discountPercent: discountPercent,
+      gst: product.gst ?? 0,
+      isCustomized: product.isCustomized ?? false,
       image: images[0],
       variantId: selectedVariant?._id || null,
       attributes,
@@ -570,6 +569,22 @@ const ProductDetail = () => {
               </div>
             )}
 
+            {/* ✅ Customizable product button */}
+            {product.isCustomized && (
+              <div>
+                <Button
+                  className="w-full bg-white/20 text-white border border-white/40 hover:bg-white/30"
+                  size="xl"
+                  onClick={() => window.location.href = `/customize/${product._id}`}
+                >
+                  ✨ Customize This Product
+                </Button>
+                <p className="text-xs text-white/60 mt-2">
+                  Choose size, color, fabric, and add personal touches.
+                </p>
+              </div>
+            )}
+
             {/* Dimensions */}
             {product.dimensions && (
               <div className="bg-black/40 backdrop-blur-sm rounded-xl border border-white/10 p-4">
@@ -598,24 +613,30 @@ const ProductDetail = () => {
               </div>
             ) : null}
 
-            {/* Stock status */}
-            <div className="text-sm">
-              <span className="text-white/70">Availability:</span>{" "}
-              <span
-                className={
-                  hasVariants && !selectedVariant
-                    ? "text-yellow-300"
+            {/* ✅ GST & Stock status */}
+            <div className="text-sm space-y-1">
+              <div>
+                <span className="text-white/70">GST:</span>{" "}
+                <span className="text-white">{product.gst ?? 0}%</span>
+              </div>
+              <div>
+                <span className="text-white/70">Availability:</span>{" "}
+                <span
+                  className={
+                    hasVariants && !selectedVariant
+                      ? "text-yellow-300"
+                      : inStock
+                      ? "text-green-300"
+                      : "text-red-300"
+                  }
+                >
+                  {hasVariants && !selectedVariant
+                    ? "Select options to see availability"
                     : inStock
-                    ? "text-green-300"
-                    : "text-red-300"
-                }
-              >
-                {hasVariants && !selectedVariant
-                  ? "Select options to see availability"
-                  : inStock
-                  ? `In Stock (${displayStock})`
-                  : "Out of Stock"}
-              </span>
+                    ? `In Stock (${displayStock})`
+                    : "Out of Stock"}
+                </span>
+              </div>
             </div>
 
             {/* Quantity & Add to Cart */}

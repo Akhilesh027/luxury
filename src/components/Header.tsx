@@ -1,12 +1,12 @@
-// Header.tsx – updated to navigate to /auth or /profile
-import { useEffect, useMemo, useState, useCallback } from "react";
-import { Link, useNavigate } from "react-router-dom"; // add useNavigate
-import { Search, MapPin, User, Heart, ShoppingBag, Menu, ChevronDown } from "lucide-react";
+// Header.tsx – updated with search functionality
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { Search, MapPin, User, Heart, ShoppingBag, Menu, ChevronDown, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/contexts/CartContext";
 import { useFavorites } from "@/contexts/FavoritesContext";
-import { useAuth } from "@/contexts/auth-context"; // import useAuth
+import { useAuth } from "@/contexts/auth-context";
 import MegaMenu from "./MegaMenu";
 import MobileDrawer from "./MobileDrawer";
 import LocationPanel from "./LocationPanel";
@@ -15,7 +15,7 @@ import logo from "../../public/JSGALORE.png";
 
 type MenuKey = "catalog" | "concepts" | "rooms";
 
-const API_BASE = "http://localhost:5000/api";
+const API_BASE = "https://api.jsgallor.com/api";
 const WEBSITE_SEGMENT: "all" | "luxury" = "luxury";
 
 type CategoryItem = {
@@ -42,6 +42,20 @@ type CategoriesResponse = {
     limit?: number;
     totalItems?: number;
   };
+};
+
+type SearchResult = {
+  _id: string;
+  id: string;
+  name: string;
+  slug: string;
+  price: number;
+  images: string[];
+  categoryId: string;
+  categoryName?: string;
+  subcategoryId?: string;
+  subcategoryName?: string;
+  description?: string;
 };
 
 async function apiGet<T>(url: string, signal?: AbortSignal): Promise<T> {
@@ -71,7 +85,7 @@ function buildMegaMenuData(parent: CategoryItem, children: CategoryItem[]) {
 
 const Header = () => {
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth(); // get authentication state
+  const { isAuthenticated } = useAuth();
   const [activeMenu, setActiveMenu] = useState<MenuKey>("catalog");
   const [hoveredParentId, setHoveredParentId] = useState<string | null>(null);
   const [showSecondRow, setShowSecondRow] = useState(false);
@@ -79,7 +93,13 @@ const Header = () => {
   const [locationOpen, setLocationOpen] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showSearchResults, setShowSearchResults] = useState(false);
   const [userLocation, setUserLocation] = useState<{ city: string; pin: string } | null>(null);
+  const searchRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const searchDebounceRef = useRef<NodeJS.Timeout>();
 
   const { totalItems } = useCart();
   const { favorites } = useFavorites();
@@ -87,6 +107,75 @@ const Header = () => {
   const [items, setItems] = useState<CategoryItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+
+  // Search function
+  const performSearch = useCallback(async (query: string) => {
+    if (!query.trim()) {
+      setSearchResults([]);
+      setShowSearchResults(false);
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      const response = await fetch(`${API_BASE}/luxury/products/search?q=${encodeURIComponent(query)}&limit=10`);
+      const data = await response.json();
+      
+      if (data.success && data.data) {
+        setSearchResults(data.data);
+        setShowSearchResults(true);
+      } else {
+        setSearchResults([]);
+      }
+    } catch (error) {
+      console.error("Search error:", error);
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  }, []);
+
+  // Debounced search
+  useEffect(() => {
+    if (searchDebounceRef.current) {
+      clearTimeout(searchDebounceRef.current);
+    }
+
+    searchDebounceRef.current = setTimeout(() => {
+      performSearch(searchQuery);
+    }, 300);
+
+    return () => {
+      if (searchDebounceRef.current) {
+        clearTimeout(searchDebounceRef.current);
+      }
+    };
+  }, [searchQuery, performSearch]);
+
+  // Close search results when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setShowSearchResults(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Handle escape key
+  useEffect(() => {
+    const handleEscKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setShowSearchResults(false);
+        setSearchQuery("");
+      }
+    };
+
+    document.addEventListener("keydown", handleEscKey);
+    return () => document.removeEventListener("keydown", handleEscKey);
+  }, []);
 
   const handleUserClick = () => {
     if (isAuthenticated) {
@@ -107,6 +196,30 @@ const Header = () => {
     },
     [activeMenu]
   );
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      navigate(`/catalog?search=${encodeURIComponent(searchQuery)}`);
+      setShowSearchResults(false);
+      setSearchQuery("");
+    }
+  };
+
+  const handleResultClick = (result: SearchResult) => {
+    navigate(`/product/${result.id || result._id}`);
+    setShowSearchResults(false);
+    setSearchQuery("");
+  };
+
+  const clearSearch = () => {
+    setSearchQuery("");
+    setSearchResults([]);
+    setShowSearchResults(false);
+    if (searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  };
 
   useEffect(() => {
     const ac = new AbortController();
@@ -176,6 +289,14 @@ const Header = () => {
     return buildMegaMenuData(hoveredParent, hoveredChildren);
   }, [hoveredParent, hoveredChildren]);
 
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency: "INR",
+      maximumFractionDigits: 0,
+    }).format(price);
+  };
+
   return (
     <>
       <header className="sticky top-0 z-50 backdrop-blur-md border-b border-black/20 bg-gradient-to-r from-[#7a5a1e] via-[#d4af37] to-[#7a5a1e] shadow-lg text-white w-full">
@@ -192,18 +313,103 @@ const Header = () => {
             </a>
           </div>
 
-          {/* Search */}
-          <div className="flex-1 max-w-md mx-4">
-            <div className="flex items-center gap-2 bg-white/10 rounded-full px-4 py-2 border border-white/20">
-              <Search className="h-4 w-4 text-white shrink-0" />
-              <input
-                type="search"
-                placeholder="I want to find..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="bg-transparent border-none outline-none text-sm w-full placeholder:text-white/70 text-white"
-              />
-            </div>
+          {/* Search with Autocomplete */}
+          <div className="flex-1 max-w-md mx-4 relative" ref={searchRef}>
+            <form onSubmit={handleSearchSubmit}>
+              <div className="flex items-center gap-2 bg-white/10 rounded-full px-4 py-2 border border-white/20 focus-within:border-white/50 transition-colors">
+                <Search className="h-4 w-4 text-white shrink-0" />
+                <input
+                  ref={searchInputRef}
+                  type="search"
+                  placeholder="I want to find..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onFocus={() => {
+                    if (searchResults.length > 0) {
+                      setShowSearchResults(true);
+                    }
+                  }}
+                  className="bg-transparent border-none outline-none text-sm w-full placeholder:text-white/70 text-white"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={clearSearch}
+                    className="text-white/70 hover:text-white transition-colors"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+            </form>
+
+            {/* Search Results Dropdown */}
+            <AnimatePresence>
+              {showSearchResults && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.2 }}
+                  className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-2xl max-h-96 overflow-y-auto z-50"
+                >
+                  {isSearching ? (
+                    <div className="p-4 text-center text-gray-500">
+                      <div className="animate-spin inline-block w-5 h-5 border-2 border-gray-300 border-t-[#7a5a1e] rounded-full"></div>
+                      <p className="mt-2 text-sm">Searching...</p>
+                    </div>
+                  ) : searchResults.length > 0 ? (
+                    <div>
+                      <div className="p-3 border-b border-gray-100">
+                        <p className="text-xs text-gray-500 font-medium">
+                          Found {searchResults.length} result{searchResults.length > 1 ? "s" : ""}
+                        </p>
+                      </div>
+                      {searchResults.map((result) => (
+                        <button
+                          key={result.id || result._id}
+                          onClick={() => handleResultClick(result)}
+                          className="w-full p-3 hover:bg-gray-50 transition-colors text-left border-b border-gray-100 last:border-0 flex gap-3"
+                        >
+                          {result.images && result.images[0] && (
+                            <img
+                              src={result.images[0]}
+                              alt={result.name}
+                              className="w-12 h-12 object-cover rounded-lg"
+                            />
+                          )}
+                          <div className="flex-1">
+                            <p className="font-medium text-gray-800 text-sm">{result.name}</p>
+                            <p className="text-xs text-gray-500 mt-1">
+                              {result.categoryName || "Product"}
+                            </p>
+                            <p className="text-[#7a5a1e] font-semibold text-sm mt-1">
+                              {formatPrice(result.price)}
+                            </p>
+                          </div>
+                        </button>
+                      ))}
+                      <div className="p-2 border-t border-gray-100">
+                        <button
+                          onClick={handleSearchSubmit}
+                          className="w-full text-center text-sm text-[#7a5a1e] hover:text-[#d4af37] py-2 font-medium"
+                        >
+                          View all results for "{searchQuery}"
+                        </button>
+                      </div>
+                    </div>
+                  ) : searchQuery.trim() ? (
+                    <div className="p-8 text-center">
+                      <Search className="h-10 w-10 text-gray-300 mx-auto mb-2" />
+                      <p className="text-gray-500">No products found</p>
+                      <p className="text-xs text-gray-400 mt-1">
+                        Try searching with different keywords
+                      </p>
+                    </div>
+                  ) : null}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           {/* Navigation Buttons */}
@@ -226,7 +432,7 @@ const Header = () => {
               </Button>
             ))}
 
-            {/* External links as buttons (using asChild) */}
+            {/* External links as buttons */}
             <Button asChild className="bg-[#6f5424] text-white hover:bg-[#5c451e] transition-colors">
               <a
                 href="https://essentialstudio.jsgallor.com"
@@ -258,6 +464,7 @@ const Header = () => {
                 onClick={() => {
                   setLocationOpen(!locationOpen);
                   setCartOpen(false);
+                  setShowSearchResults(false);
                 }}
                 className={`${locationOpen ? "text-yellow-200" : "text-white"} hover:text-yellow-200`}
               >
@@ -270,7 +477,7 @@ const Header = () => {
               )}
             </div>
 
-            {/* User – now navigates instead of opening panel */}
+            {/* User */}
             <Button
               variant="icon"
               size="icon"
@@ -299,6 +506,7 @@ const Header = () => {
               onClick={() => {
                 setCartOpen(!cartOpen);
                 setLocationOpen(false);
+                setShowSearchResults(false);
               }}
               className={`relative ${cartOpen ? "text-yellow-200" : "text-white"} hover:text-yellow-200`}
             >

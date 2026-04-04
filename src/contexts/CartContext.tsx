@@ -15,7 +15,11 @@ import { useAuth } from "@/contexts/auth-context";
 export interface CartItem {
   id: string;                 // productId (_id)
   name: string;
-  price: number;
+  price: number;              // final discounted price (after product discount)
+  originalPrice: number;      // original price before discount
+  discountPercent: number;    // product discount %
+  gst: number;                // GST percentage
+  isCustomized: boolean;      // customization flag
   image: string;
   variantId?: string | null;
   attributes?: {
@@ -24,7 +28,7 @@ export interface CartItem {
     fabric?: string | null;
   };
   quantity: number;
-  cartItemId?: string;        // server cart item ID (for authenticated users)
+  cartItemId?: string;        // server cart item ID
 }
 
 interface CartContextType {
@@ -34,7 +38,8 @@ interface CartContextType {
   updateQuantity: (itemId: string, quantity: number) => void;
   clearCart: () => void;
   totalItems: number;
-  totalPrice: number;
+  totalPrice: number;         // sum of (price * quantity) – before tax & shipping
+  totalGst: number;           // sum of (price * quantity * gst/100)
   syncNow: () => Promise<void>;
 }
 
@@ -63,11 +68,15 @@ type ServerCartItem = {
   };
   name?: string;
   price?: number;
+  originalPrice?: number;
+  discountPercent?: number;
+  gst?: number;
+  isCustomized?: boolean;
   image?: string;
   quantity: number;
 };
 
-// Helper to generate a stable unique key for an item (based on productId, variant, attributes)
+// Helper to generate a stable unique key for an item
 const getItemMatchKey = (item: CartItem): string => {
   const base = item.id;
   const variant = item.variantId || 'null';
@@ -109,7 +118,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     [token]
   );
 
-  // map server cart -> frontend cart
+  // map server cart -> frontend cart (includes GST & customization)
   const normalizeServerItems = useCallback((serverItems: ServerCartItem[]): CartItem[] => {
     return (serverItems || [])
       .map((it) => {
@@ -137,17 +146,21 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
           id: productId,
           name: it.name || prod?.name || "",
           price: Number(it.price ?? prod?.price ?? 0),
+          originalPrice: Number(it.originalPrice ?? it.price ?? prod?.price ?? 0),
+          discountPercent: Number(it.discountPercent ?? 0),
+          gst: Number(it.gst ?? 0),
+          isCustomized: Boolean(it.isCustomized ?? false),
           image: image || "",
           variantId: it.variantId || null,
           attributes: it.attributes || {},
           quantity: Number(it.quantity || 1),
-          cartItemId: it._id,               // store the server cart item ID
+          cartItemId: it._id,
         } as CartItem;
       })
       .filter(Boolean) as CartItem[];
   }, []);
 
-  // map frontend cart -> server payload
+  // map frontend cart -> server payload (includes new fields)
   const toServerPayload = useCallback((localItems: CartItem[]) => {
     return (localItems || []).map((it) => ({
       productId: it.id,
@@ -155,6 +168,10 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       attributes: it.attributes || {},
       name: it.name,
       price: it.price,
+      originalPrice: it.originalPrice,
+      discountPercent: it.discountPercent,
+      gst: it.gst,
+      isCustomized: it.isCustomized,
       image: it.image,
       quantity: it.quantity,
     }));
@@ -259,7 +276,6 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       const quantityToAdd = Math.max(1, Number(qty) || 1);
 
       setItems((prev) => {
-        // Find existing item by match key (productId + variant + attributes)
         const matchKey = getItemMatchKey({ ...newItem, quantity: 1 } as CartItem);
         const idx = prev.findIndex((it) => getItemMatchKey(it) === matchKey);
 
@@ -283,9 +299,8 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     setItems((prev) =>
       prev.filter((item) => {
         const matchKey = getItemMatchKey(item);
-        // itemId can be either a cartItemId (server ID) or a match key
         const matches = (item.cartItemId && item.cartItemId === itemId) || matchKey === itemId;
-        return !matches; // keep items that do NOT match
+        return !matches;
       })
     );
   }, []);
@@ -322,6 +337,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
   const totalItems = useMemo(() => items.reduce((s, i) => s + i.quantity, 0), [items]);
   const totalPrice = useMemo(() => items.reduce((s, i) => s + i.price * i.quantity, 0), [items]);
+  const totalGst = useMemo(() => items.reduce((s, i) => s + (i.price * i.quantity * i.gst / 100), 0), [items]);
 
   return (
     <CartContext.Provider
@@ -333,6 +349,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         clearCart,
         totalItems,
         totalPrice,
+        totalGst,
         syncNow,
       }}
     >

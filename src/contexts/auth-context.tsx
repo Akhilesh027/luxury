@@ -1,3 +1,4 @@
+// src/contexts/auth-context.tsx
 import React, {
   createContext,
   useContext,
@@ -51,12 +52,13 @@ interface AuthContextType {
     confirmPassword: string
   ) => Promise<boolean>;
 
-  // ✅ Google auth
+  // Google auth
   googleAuth: (credential: string) => Promise<boolean>;
 
   logout: () => Promise<void>;
   getProfile: () => Promise<User | null>;
   updateProfile: (data: Partial<User>) => Promise<User | null>;
+  onLoginSuccess?: () => void; // Callback for after successful login
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -98,7 +100,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const [isLoading, setIsLoading] = useState(true);
 
-  // ✅ Avoid stale token inside apiRequest
+  // Avoid stale token inside apiRequest
   const tokenRef = useRef<string | null>(token);
   useEffect(() => {
     tokenRef.current = token;
@@ -158,7 +160,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const isAuthenticated = useMemo(() => !!token, [token]);
 
-  // ✅ Boot: if token exists, refresh profile once
+  // Boot: if token exists, refresh profile once
   const profileFetchedRef = useRef(false);
   useEffect(() => {
     (async () => {
@@ -174,7 +176,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ✅ GET PROFILE
+  // GET PROFILE
   const getProfile = useCallback(async (): Promise<User | null> => {
     try {
       const data = await apiRequest<{ success: boolean; customer?: User }>("/profile", {
@@ -193,7 +195,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   }, [apiRequest, persistAuth]);
 
-  // ✅ LOGIN
+  // LOGIN
   const login = useCallback(
     async (email: string, password: string) => {
       setIsLoading(true);
@@ -232,7 +234,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     [apiRequest, persistAuth, getProfile]
   );
 
-  // ✅ SIGNUP
+  // SIGNUP
   const signup = useCallback(
     async (
       firstName: string,
@@ -280,7 +282,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     [apiRequest, persistAuth, getProfile]
   );
 
-  // ✅ GOOGLE AUTH (LOGIN / SIGNUP)
+  // GOOGLE AUTH (LOGIN / SIGNUP)
   const googleAuth = useCallback(
     async (credential: string) => {
       if (!credential) {
@@ -290,8 +292,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       setIsLoading(true);
       try {
-        // NOTE: this endpoint is not under /api/luxury
-        // Your backend route is: POST /api/auth/google
         const res = await fetch(`${API_ORIGIN}/api/auth/google`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -317,7 +317,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           description: "You are logged in with Google.",
         });
 
-        // optional refresh from /api/luxury/profile
         await getProfile().catch(() => {});
         return true;
       } catch (err: any) {
@@ -334,7 +333,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     [persistAuth, getProfile]
   );
 
-  // ✅ LOGOUT
+  // LOGOUT
   const logout = useCallback(async () => {
     try {
       await apiRequest("/logout", { method: "POST" });
@@ -345,7 +344,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   }, [apiRequest, logoutLocal]);
 
-  // ✅ UPDATE PROFILE
+  // UPDATE PROFILE
   const updateProfile = useCallback(
     async (payload: Partial<User>): Promise<User | null> => {
       try {
@@ -381,7 +380,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     [apiRequest, persistAuth]
   );
 
-  // ✅ Refresh profile only when tab is visible
+  // Refresh profile only when tab is visible
   useEffect(() => {
     if (!token) return;
 

@@ -1,23 +1,82 @@
 // pages/AuthPage.tsx
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { GoogleLogin } from "@react-oauth/google";
 import { LoginForm } from "@/components/LoginForm";
 import { RegisterForm } from "@/components/RegisterForm";
 import { useAuth } from "@/contexts/auth-context";
+import { useCart } from "@/contexts/CartContext";
 import { toast } from "@/hooks/use-toast";
 import { Check } from "lucide-react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import logo from '../../public/JSGALORE.png'
+
 const AuthPage = () => {
   const [activeTab, setActiveTab] = useState<"login" | "register">("login");
-  const { googleAuth, isLoading: authLoading } = useAuth();
+  const { googleAuth, isLoading: authLoading, isAuthenticated } = useAuth();
+  const { syncNow, forceSyncAndWait } = useCart();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  // Check for redirect URL and checkout flow
+  const redirectTo = searchParams.get("redirect") || "/";
+  const isCheckoutFlow = searchParams.get("checkout") === "true";
+
+  // Handle post-authentication redirect and cart sync
+  useEffect(() => {
+    const handlePostAuth = async () => {
+      if (isAuthenticated) {
+        // Check for pending checkout
+        const pendingCart = sessionStorage.getItem('checkout_pending_cart');
+        
+        if (pendingCart && isCheckoutFlow) {
+          try {
+            // Sync the cart to server
+            await syncNow();
+            
+            const pendingData = JSON.parse(pendingCart);
+            
+            // Check if pending data is still valid (less than 1 hour old)
+            if (pendingData.timestamp && Date.now() - pendingData.timestamp < 3600000) {
+              // Clear pending cart
+              sessionStorage.removeItem('checkout_pending_cart');
+              
+              toast.success("Cart synced! Redirecting to checkout...");
+              
+              // Navigate to checkout with stored state
+              navigate("/checkout", {
+                state: {
+                  coupon: pendingData.coupon,
+                  pricing: pendingData.pricing,
+                },
+                replace: true
+              });
+              return;
+            } else {
+              // Pending data expired
+              sessionStorage.removeItem('checkout_pending_cart');
+              toast.info("Please review your cart before checkout");
+            }
+          } catch (error) {
+            console.error("Failed to sync cart:", error);
+            toast.error("Cart sync failed. Please refresh the page.");
+          }
+        }
+        
+        // Navigate to the redirect URL
+        navigate(redirectTo, { replace: true });
+      }
+    };
+
+    handlePostAuth();
+  }, [isAuthenticated, navigate, redirectTo, isCheckoutFlow, syncNow]);
 
   const handleGoogleSuccess = async (credential?: string) => {
     if (!credential) return;
     try {
       await googleAuth(credential);
+      // The useEffect above will handle the redirect
       toast({ title: "Success", description: "Google sign-in completed" });
-      window.location.href = "/";
     } catch (err) {
       console.error(err);
       toast({ title: "Error", description: "Google authentication failed", variant: "destructive" });
@@ -25,7 +84,9 @@ const AuthPage = () => {
   };
 
   const handleFormSuccess = () => {
-    window.location.href = "/";
+    // Don't navigate here - let the useEffect handle it
+    // This ensures cart sync completes before navigation
+    toast.success("Login successful! Redirecting...");
   };
 
   return (
@@ -35,7 +96,7 @@ const AuthPage = () => {
         <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2260%22%20height%3D%2260%22%20viewBox%3D%220%200%2060%2060%22%3E%3Cg%20fill%3D%22%23ffffff%22%20fill-opacity%3D%220.05%22%3E%3Cpath%20d%3D%22M36%2034v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6%2034v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6%204V0H4v4H0v2h4v4h2V6h4V4H6z%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E')] opacity-20 bg-repeat" />
         <div className="relative z-10 max-w-md text-center md:text-left">
           <div className="inline-flex items-center gap-3 mb-8">
-            <div className="w-14 h-14 rounded-xl  flex items-center justify-center font-bold text-[#7a5a1e] text-2xl shadow-lg">
+            <div className="w-14 h-14 rounded-xl flex items-center justify-center font-bold text-[#7a5a1e] text-2xl shadow-lg">
               <img src={logo} alt="Logo" />
             </div>
             <span className="text-2xl font-bold text-white drop-shadow-lg">Celestialiving</span>
@@ -93,6 +154,12 @@ const AuthPage = () => {
                 ? "Sign in to your premium account"
                 : "Join us for exclusive luxury experiences"}
             </p>
+            {isCheckoutFlow && (
+              <div className="mt-2 inline-flex items-center gap-2 bg-[#d4af37]/20 text-[#d4af37] text-xs px-3 py-1 rounded-full">
+                <Check className="w-3 h-3" />
+                Complete your purchase
+              </div>
+            )}
           </div>
 
           {/* Tab Switcher */}
@@ -121,9 +188,17 @@ const AuthPage = () => {
 
           {/* Form Area */}
           {activeTab === "login" ? (
-            <LoginForm onSuccess={handleFormSuccess} onSwitchToRegister={() => setActiveTab("register")} />
+            <LoginForm 
+              onSuccess={handleFormSuccess} 
+              onSwitchToRegister={() => setActiveTab("register")}
+              redirectTo={redirectTo}
+            />
           ) : (
-            <RegisterForm onSuccess={handleFormSuccess} onSwitchToLogin={() => setActiveTab("login")} />
+            <RegisterForm 
+              onSuccess={handleFormSuccess} 
+              onSwitchToLogin={() => setActiveTab("login")}
+              redirectTo={redirectTo}
+            />
           )}
 
           {/* Google Login – shown in both tabs */}

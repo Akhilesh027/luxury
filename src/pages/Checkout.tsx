@@ -8,6 +8,7 @@
 //        - GET /api/shipping-costs/by-location?website=luxury&city=...&pincode=...
 //        - auto recalculates when selected address changes
 //        - sends shipping object + totals to backend
+// ✅ GST: dynamic per‑product GST (from cart context)
 
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -174,7 +175,7 @@ const getColorName = (hex: string) => {
 };
 
 const Checkout = () => {
-  const { items, totalPrice, clearCart } = useCart();
+  const { items, totalPrice, clearCart, totalGst } = useCart(); // ✅ added totalGst
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -237,9 +238,10 @@ const Checkout = () => {
     return Math.max(0, Number(shippingBase || 0) - Number(shippingDiscount || 0));
   }, [shippingBase, shippingDiscount]);
 
+  // ✅ Final total includes GST
   const finalTotal = useMemo(() => {
-    return Math.max(0, totalPrice - discount) + shipping;
-  }, [totalPrice, discount, shipping]);
+    return Math.max(0, totalPrice - discount) + shipping + totalGst;
+  }, [totalPrice, discount, shipping, totalGst]);
 
   useEffect(() => {
     const token = getToken();
@@ -635,7 +637,6 @@ const Checkout = () => {
       const payload: any = {
         addressId: selectedAddressId,
 
-        // ✅ Include variant details for each item
         items: items.map((it: any) => ({
           productId: it.id,
           variantId: it.variantId || null,
@@ -645,11 +646,13 @@ const Checkout = () => {
           color: it.attributes?.color || it.color || "",
           price: Number(it.price || 0),
           quantity: Number(it.quantity || 1),
+          gst: it.gst || 0,                     // ✅ send per‑item GST (optional)
         })),
 
         totals: {
           subtotal: Number(totalPrice) || 0,
           discount: Number(discount) || 0,
+          gst: Number(totalGst) || 0,           // ✅ dynamic GST total
           shippingBase: Number(shippingBase) || 0,
           shippingDiscount: Number(shippingDiscount) || 0,
           shipping: Number(shipping) || 0,
@@ -1006,7 +1009,6 @@ const Checkout = () => {
                       <img src={item.image} alt={item.name} className="w-16 h-16 object-cover rounded-lg" />
                       <div className="flex-1">
                         <p className="font-medium text-sm text-white">{item.name}</p>
-                        {/* Variant badges */}
                         {(color || size || fabric) && (
                           <div className="flex flex-wrap gap-1 mt-1">
                             {color && (
@@ -1087,6 +1089,11 @@ const Checkout = () => {
                     <span>-{formatPrice(discount)}</span>
                   </div>
                 )}
+
+                <div className="flex justify-between text-sm">
+                  <span className="text-white/70">GST</span>
+                  <span className="text-white">{formatPrice(totalGst)}</span>
+                </div>
 
                 <div className="flex justify-between text-sm">
                   <span className="text-white/70">Shipping</span>

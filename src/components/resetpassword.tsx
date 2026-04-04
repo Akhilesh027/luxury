@@ -49,7 +49,7 @@ const ResetPassword = () => {
     setLoading(true);
 
     try {
-      const res = await fetch("http://localhost:5000/api/luxury/reset", {
+      const res = await fetch("https://api.jsgallor.com/api/luxury/reset", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

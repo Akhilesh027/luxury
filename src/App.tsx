@@ -34,10 +34,17 @@ const ScrollToTop = () => {
   return null;
 };
 
-// Floating WhatsApp component
+// Floating WhatsApp component with pre‑filled quotation request
 const FloatingWhatsApp = () => {
   const whatsappNumber = "917075848516"; // Country code +91 followed by 7075848516
-  const whatsappLink = `https://wa.me/${whatsappNumber}`;
+  
+  // Customized quotation message (URL‑encoded)
+  const message = encodeURIComponent(
+    "Hello, I would like to request a customized quotation for your products. " +
+    "Please provide me with the best offer based on my requirements. Thank you!"
+  );
+  
+  const whatsappLink = `https://wa.me/${whatsappNumber}?text=${message}`;
 
   return (
     <a
@@ -45,7 +52,7 @@ const FloatingWhatsApp = () => {
       target="_blank"
       rel="noopener noreferrer"
       className="fixed bottom-6 right-6 bg-green-500 rounded-full p-3 shadow-lg hover:bg-green-600 transition-all duration-300 z-50 focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-offset-2"
-      aria-label="Chat with us on WhatsApp"
+      aria-label="Request customized quotation on WhatsApp"
     >
       <img
         src="https://img.icons8.com/color/48/000000/whatsapp--v1.png"
@@ -66,7 +73,7 @@ const App = () => (
             <Sonner />
             <BrowserRouter>
               <ScrollToTop />
-              <FloatingWhatsApp /> {/* Global WhatsApp button */}
+              <FloatingWhatsApp /> {/* Global WhatsApp button for quotations */}
               <Routes>
                 <Route path="/" element={<Index />} />
 

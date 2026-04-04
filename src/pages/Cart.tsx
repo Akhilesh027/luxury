@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { useCart, CartItem } from "@/contexts/CartContext";
+import { useAuth } from "@/contexts/auth-context";
 import { toast } from "sonner";
 
 const WEBSITE: "affordable" | "midrange" | "luxury" = "luxury";
@@ -87,7 +88,8 @@ const getColorName = (hex: string) => {
 
 const Cart = () => {
   const navigate = useNavigate();
-  const { items, updateQuantity, removeItem, totalPrice, clearCart, totalItems } = useCart();
+  const { items, updateQuantity, removeItem, totalPrice, clearCart, totalItems, totalGst, syncNow } = useCart();
+  const { isAuthenticated, token: authToken } = useAuth();
 
   const formatPrice = (price: number) =>
     new Intl.NumberFormat("en-IN", {
@@ -103,15 +105,14 @@ const Cart = () => {
   const [couponApplied, setCouponApplied] = useState<ApplyCouponResponse["coupon"] | null>(null);
   const [discount, setDiscount] = useState(0);
   const [shippingDiscount, setShippingDiscount] = useState(0);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const shipping = Math.max(0, shippingBase - shippingDiscount);
   const finalTotal = Math.max(0, totalPrice - discount) + shipping;
 
   // Helper to generate a stable identifier for an item (same as context's getItemMatchKey)
   const getItemIdentifier = (item: CartItem): string => {
-    // If the item has a server cart item ID, use that
     if (item.cartItemId) return item.cartItemId;
-    // Otherwise build a composite key
     const base = item.id;
     const variant = item.variantId || 'null';
     const color = item.attributes?.color || 'null';
@@ -119,6 +120,51 @@ const Cart = () => {
     const fabric = item.attributes?.fabric || 'null';
     return `${base}::${variant}::${color}::${size}::${fabric}`;
   };
+
+  // Check for pending checkout after cart loads
+  useEffect(() => {
+    const checkPendingCheckout = async () => {
+      const pendingCart = sessionStorage.getItem('checkout_pending_cart');
+      
+      if (pendingCart && isAuthenticated && authToken) {
+        setIsSyncing(true);
+        try {
+          // Sync cart to server
+          await syncNow();
+          
+          const pendingData = JSON.parse(pendingCart);
+          
+          // Check if pending data is still valid (less than 1 hour old)
+          if (pendingData.timestamp && Date.now() - pendingData.timestamp < 3600000) {
+            // Clear pending cart
+            sessionStorage.removeItem('checkout_pending_cart');
+            
+            toast.success("Cart synced! Redirecting to checkout...");
+            
+            // Navigate to checkout with stored state
+            navigate("/checkout", {
+              state: {
+                coupon: pendingData.coupon,
+                pricing: pendingData.pricing,
+              },
+              replace: true
+            });
+          } else {
+            // Pending data expired
+            sessionStorage.removeItem('checkout_pending_cart');
+            toast.info("Please review your cart before checkout");
+          }
+        } catch (error) {
+          console.error("Failed to sync cart:", error);
+          toast.error("Cart sync failed. Please refresh the page.");
+        } finally {
+          setIsSyncing(false);
+        }
+      }
+    };
+
+    checkPendingCheckout();
+  }, [isAuthenticated, authToken, syncNow, navigate]);
 
   useEffect(() => {
     try {
@@ -273,41 +319,33 @@ const Cart = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [totalPrice, shippingBase, items.length]);
 
-  const goToCheckout = () => {
-    // Check if user is logged in
-    const token = getToken();
-    const userId = getSavedUserId();
-    if (!token || !userId) {
-      toast.error("Please login to proceed to checkout");
-      navigate("/login?redirect=/cart");
+const goToCheckout = async () => {
+  // Sync cart only if logged in
+  if (isAuthenticated && authToken) {
+    setIsSyncing(true);
+    try {
+      await syncNow();
+      toast.success("Cart synced successfully!");
+    } catch (error) {
+      console.error("Failed to sync cart:", error);
+      toast.error("Failed to sync cart. Please try again.");
+      setIsSyncing(false);
       return;
+    } finally {
+      setIsSyncing(false);
     }
+  }
 
-    // Continue with existing checkout logic
-    const payload = {
-      coupon: couponApplied
-        ? {
-            couponId: couponApplied.couponId || couponApplied.id,
-            id: couponApplied.id,
-            code: couponApplied.code,
-            type: couponApplied.type,
-            value: couponApplied.value,
-          }
-        : couponCode.trim()
-          ? { code: couponCode.trim().toUpperCase() }
-          : undefined,
-      pricing: {
-        subtotal: totalPrice,
-        discount,
-        shippingBase,
-        shippingDiscount,
-        shipping,
-        total: finalTotal,
-      },
-    };
+  const token = getToken();
+  const userId = getSavedUserId();
 
-    navigate("/checkout", { state: payload });
-  };
+  // 👉 Allow checkout even without login
+  navigate("/checkout", {
+    state: {
+      isGuest: !token || !userId
+    }
+  });
+};
 
   if (items.length === 0) {
     return (
@@ -436,8 +474,18 @@ const Cart = () => {
                         </div>
                       )}
 
+                      {/* Customizable badge */}
+                      {(item as any).isCustomized && (
+                        <span className="inline-block mt-2 text-[10px] text-amber-300 bg-amber-900/30 px-2 py-0.5 rounded-full">
+                          Customizable
+                        </span>
+                      )}
+
                       <p className="text-xs text-white/50 mt-2">
                         Unit price: {formatPrice(item.price)}
+                        {(item as any).gst > 0 && (
+                          <span className="ml-2">(GST {(item as any).gst}%)</span>
+                        )}
                       </p>
                     </div>
 
@@ -562,6 +610,11 @@ const Cart = () => {
                 )}
 
                 <div className="flex justify-between">
+                  <span className="text-white/70">GST</span>
+                  <span className="text-white">{formatPrice(totalGst)}</span>
+                </div>
+
+                <div className="flex justify-between">
                   <span className="text-white/70">Shipping</span>
                   <span className="text-white">{shipping === 0 ? "Free" : formatPrice(shipping)}</span>
                 </div>
@@ -584,10 +637,19 @@ const Cart = () => {
                 className="w-full bg-white text-[#7a5a1e] hover:bg-[#d4af37] hover:text-white border-0"
                 size="lg"
                 onClick={goToCheckout}
-                disabled={couponLoading}
+                disabled={couponLoading || isSyncing}
               >
-                Proceed to Checkout
-                <ArrowRight className="w-5 h-5 ml-2" />
+                {isSyncing ? (
+                  <>
+                    <span className="animate-spin inline-block mr-2">⏳</span>
+                    Syncing Cart...
+                  </>
+                ) : (
+                  <>
+                    Proceed to Checkout
+                    <ArrowRight className="w-5 h-5 ml-2" />
+                  </>
+                )}
               </Button>
 
               <Link to="/catalog">
