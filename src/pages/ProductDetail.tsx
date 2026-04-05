@@ -468,7 +468,10 @@ const ProductDetail = () => {
               )}
             </div>
 
-            <p className="text-white/80 leading-relaxed">{product.description || "—"}</p>
+            {/* ✅ Description with preserved line breaks */}
+            <div className="text-white/80 leading-relaxed whitespace-pre-wrap">
+              {product.description || "—"}
+            </div>
 
             {/* Color Selection */}
             {availableColors.length > 0 && (
@@ -569,24 +572,24 @@ const ProductDetail = () => {
               </div>
             )}
 
-           {/* ✅ Customizable product button */}
-{product.isCustomized && (
-  <div>
-    <Button
-      className="w-full bg-white/20 text-white border border-white/40 hover:bg-white/30"
-      size="xl"
-      onClick={() => {
-        const message = `Hi, I'm interested in customizing this product:%0A%0A*Name:* ${encodeURIComponent(product.name)}%0A*ID:* ${product._id}%0A%0ACan you please share customization options?`;
-        window.open(`https://wa.me/917075848516?text=${message}`, '_blank');
-      }}
-    >
-      ✨ Customize This Product
-    </Button>
-    <p className="text-xs text-white/60 mt-2">
-      Choose size, color, fabric, and add personal touches.
-    </p>
-  </div>
-)}
+            {/* ✅ Customizable product button */}
+            {product.isCustomized && (
+              <div>
+                <Button
+                  className="w-full bg-white/20 text-white border border-white/40 hover:bg-white/30"
+                  size="xl"
+                  onClick={() => {
+                    const message = `Hi, I'm interested in customizing this product:%0A%0A*Name:* ${encodeURIComponent(product.name)}%0A*ID:* ${product._id}%0A%0ACan you please share customization options?`;
+                    window.open(`https://wa.me/917075848516?text=${message}`, '_blank');
+                  }}
+                >
+                  ✨ Customize This Product
+                </Button>
+                <p className="text-xs text-white/60 mt-2">
+                  Choose size, color, fabric, and add personal touches.
+                </p>
+              </div>
+            )}
 
             {/* Dimensions */}
             {product.dimensions && (
@@ -699,9 +702,10 @@ const ProductDetail = () => {
         <section className="mt-20 border-t border-white/10 pt-12">
           <div className="max-w-4xl">
             <h2 className="text-2xl font-heading font-bold text-white mb-4">Product Description</h2>
-            <p className="text-white/80 leading-relaxed text-base">
+            {/* ✅ Full description with preserved line breaks */}
+            <div className="text-white/80 leading-relaxed text-base whitespace-pre-wrap">
               {product.description || "No description available."}
-            </p>
+            </div>
 
             <div className="mt-6 grid sm:grid-cols-2 gap-4">
               {[
