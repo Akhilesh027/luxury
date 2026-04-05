@@ -569,21 +569,24 @@ const ProductDetail = () => {
               </div>
             )}
 
-            {/* ✅ Customizable product button */}
-            {product.isCustomized && (
-              <div>
-                <Button
-                  className="w-full bg-white/20 text-white border border-white/40 hover:bg-white/30"
-                  size="xl"
-                  onClick={() => window.location.href = `/customize/${product._id}`}
-                >
-                  ✨ Customize This Product
-                </Button>
-                <p className="text-xs text-white/60 mt-2">
-                  Choose size, color, fabric, and add personal touches.
-                </p>
-              </div>
-            )}
+           {/* ✅ Customizable product button */}
+{product.isCustomized && (
+  <div>
+    <Button
+      className="w-full bg-white/20 text-white border border-white/40 hover:bg-white/30"
+      size="xl"
+      onClick={() => {
+        const message = `Hi, I'm interested in customizing this product:%0A%0A*Name:* ${encodeURIComponent(product.name)}%0A*ID:* ${product._id}%0A%0ACan you please share customization options?`;
+        window.open(`https://wa.me/917075848516?text=${message}`, '_blank');
+      }}
+    >
+      ✨ Customize This Product
+    </Button>
+    <p className="text-xs text-white/60 mt-2">
+      Choose size, color, fabric, and add personal touches.
+    </p>
+  </div>
+)}
 
             {/* Dimensions */}
             {product.dimensions && (
