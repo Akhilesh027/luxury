@@ -555,8 +555,8 @@ const Checkout = () => {
         order_id: rpOrder.id,
         amount: rpOrder.amount,
         currency: rpOrder.currency,
-        name: "Luxury Store",
-        description: "Order Payment",
+    name: "JSGALLOR",
+            description: "Order Payment",
         prefill: {
           name: prefillName || selectedAddress?.label || "",
           email: selectedAddress?.email || "",
