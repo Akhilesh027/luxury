@@ -25,10 +25,11 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
             </p>
 
             <a
-              href="tel:+919876543210"
+              href="tel:+917075848516"
               className="text-2xl font-heading font-bold text-white hover:text-[#d4af37] transition-colors"
             >
-              +91 98765 43210
+              +91 7075848516
+
             </a>
 
             <div className="flex items-center gap-2 mt-4">
