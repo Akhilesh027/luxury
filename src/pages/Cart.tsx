@@ -98,7 +98,8 @@ const Cart = () => {
       maximumFractionDigits: 0,
     }).format(price);
 
-  const shippingBase = totalPrice > 500000 ? 0 : totalPrice === 0 ? 0 : 5000;
+  // ✅ FREE SHIPPING – always zero
+  const shippingBase = 0;
 
   const [couponCode, setCouponCode] = useState("");
   const [couponLoading, setCouponLoading] = useState(false);
@@ -108,7 +109,7 @@ const Cart = () => {
   const [isSyncing, setIsSyncing] = useState(false);
 
   const shipping = Math.max(0, shippingBase - shippingDiscount);
-  const finalTotal = Math.max(0, totalPrice - discount) + shipping;
+  const finalTotal = Math.max(0, totalPrice - discount) + shipping + totalGst;
 
   // Helper to generate a stable identifier for an item (same as context's getItemMatchKey)
   const getItemIdentifier = (item: CartItem): string => {
@@ -319,33 +320,32 @@ const Cart = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [totalPrice, shippingBase, items.length]);
 
-const goToCheckout = async () => {
-  // Sync cart only if logged in
-  if (isAuthenticated && authToken) {
-    setIsSyncing(true);
-    try {
-      await syncNow();
-      toast.success("Cart synced successfully!");
-    } catch (error) {
-      console.error("Failed to sync cart:", error);
-      toast.error("Failed to sync cart. Please try again.");
-      setIsSyncing(false);
-      return;
-    } finally {
-      setIsSyncing(false);
+  const goToCheckout = async () => {
+    // Sync cart only if logged in
+    if (isAuthenticated && authToken) {
+      setIsSyncing(true);
+      try {
+        await syncNow();
+        toast.success("Cart synced successfully!");
+      } catch (error) {
+        console.error("Failed to sync cart:", error);
+        toast.error("Failed to sync cart. Please try again.");
+        setIsSyncing(false);
+        return;
+      } finally {
+        setIsSyncing(false);
+      }
     }
-  }
 
-  const token = getToken();
-  const userId = getSavedUserId();
+    const token = getToken();
+    const userId = getSavedUserId();
 
-  // 👉 Allow checkout even without login
-  navigate("/checkout", {
-    state: {
-      isGuest: !token || !userId
-    }
-  });
-};
+    navigate("/checkout", {
+      state: {
+        isGuest: !token || !userId
+      }
+    });
+  };
 
   if (items.length === 0) {
     return (
@@ -410,7 +410,7 @@ const goToCheckout = async () => {
           <div className="text-sm">
             <p className="font-medium text-white">Secure checkout & luxury-grade packaging</p>
             <p className="text-white/70">
-              Free delivery over {formatPrice(500000)} • Easy returns • 2-year warranty (where applicable)
+              Free shipping on all orders • Easy returns • 2-year warranty (where applicable)
             </p>
           </div>
         </div>
@@ -616,16 +616,13 @@ const goToCheckout = async () => {
 
                 <div className="flex justify-between">
                   <span className="text-white/70">Shipping</span>
-                  <span className="text-white">{shipping === 0 ? "Free" : formatPrice(shipping)}</span>
+                  <span className="text-white">Free</span>
                 </div>
 
-                {shippingBase === 0 ? (
-                  <p className="text-xs text-emerald-500">🎉 You qualify for free shipping!</p>
-                ) : (
-                  <p className="text-xs text-white/50">
-                    Add {formatPrice(Math.max(0, 500000 - totalPrice))} more for free shipping.
-                  </p>
-                )}
+                {/* Always show free shipping message */}
+                <div className="text-xs text-emerald-500 mt-1">
+                  ✨ Free shipping on all orders
+                </div>
               </div>
 
               <div className="flex justify-between text-lg font-bold mb-6">
