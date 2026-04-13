@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { ArrowLeft, ArrowRight, Heart, Loader2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, Heart, Loader2, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import { useCart } from "@/contexts/CartContext";
+import { toast } from "@/hooks/use-toast";
 
-// ✅ change if deployed
+// ✅ API base – change if deployed
 const API_BASE = "https://api.jsgallor.com/api/luxury";
 const TOKEN_KEY = "luxury_auth_token";
 
@@ -12,22 +14,18 @@ type Product = {
   _id: string;
   title?: string;
   name?: string;
-
   image?: string;
   images?: string[];
-
   type?: string;
   category?: string;
-
   colors?: string[];
   discount?: number;
-
   oldPrice?: number;
   newPrice?: number;
   price?: number;
-
   status?: string;
   tier?: string;
+  variants?: Array<{ price: number }>;
 };
 
 const getToken = () => localStorage.getItem(TOKEN_KEY);
@@ -40,27 +38,28 @@ const pickImage = (p: Product) =>
   p.image || (Array.isArray(p.images) ? p.images[0] : "") || "";
 const pickType = (p: Product) => p.type || p.category || "Luxury";
 
-const pickDiscount = (p: Product) => {
-  if (typeof p.discount === "number") return p.discount;
-
-  const oldP = typeof p.oldPrice === "number" ? p.oldPrice : undefined;
-  const newP = typeof p.newPrice === "number" ? p.newPrice : undefined;
-
-  if (oldP && newP && oldP > newP) {
-    return Math.round(((oldP - newP) / oldP) * 100);
-  }
-
-  return 0;
-};
-
-const pickOldPrice = (p: Product) => {
+// ----- DISCOUNT PRICE HELPERS (same as ProductCard) -----
+const pickOldPrice = (p: Product): number | undefined => {
   if (typeof p.oldPrice === "number") return p.oldPrice;
+  if (typeof p.price === "number" && typeof p.discount === "number" && p.discount > 0) {
+    return Math.round(p.price / (1 - p.discount / 100));
+  }
   return undefined;
 };
 
-const pickNewPrice = (p: Product) => {
+const pickNewPrice = (p: Product): number => {
   if (typeof p.newPrice === "number") return p.newPrice;
   if (typeof p.price === "number") return p.price;
+  return 0;
+};
+
+const pickDiscount = (p: Product): number => {
+  if (typeof p.discount === "number") return p.discount;
+  const oldP = pickOldPrice(p);
+  const newP = pickNewPrice(p);
+  if (oldP && newP && oldP > newP) {
+    return Math.round(((oldP - newP) / oldP) * 100);
+  }
   return 0;
 };
 
@@ -74,10 +73,10 @@ const formatPrice = (price: number) => {
 
 const NewProducts = () => {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const { addToCart } = useCart();
 
   const [favorites, setFavorites] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
-
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [errMsg, setErrMsg] = useState<string | null>(null);
@@ -165,6 +164,30 @@ const NewProducts = () => {
     );
   };
 
+  const handleAddToCart = (e: React.MouseEvent, product: Product) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const id = product._id;
+    const name = pickTitle(product);
+    const price = pickNewPrice(product);
+    const image = pickImage(product);
+    const category = pickType(product);
+
+    addToCart({
+      id,
+      name,
+      price,
+      image,
+      category,
+    });
+
+    toast({
+      title: "Added to cart",
+      description: `${name} has been added to your cart.`,
+    });
+  };
+
   return (
     <section className="py-16 lg:py-24 bg-gradient-to-r from-[#3b2a12] via-[#8b6b2e] to-[#3b2a12] text-[#f8f3e7]">
       <div className="container mx-auto px-4">
@@ -226,7 +249,6 @@ const NewProducts = () => {
                 const title = pickTitle(product);
                 const img = pickImage(product);
                 const type = pickType(product);
-
                 const discount = pickDiscount(product);
                 const oldPrice = pickOldPrice(product);
                 const newPrice = pickNewPrice(product);
@@ -262,6 +284,17 @@ const NewProducts = () => {
                             -{discount}%
                           </span>
                         )}
+
+                        {/* Add to Cart button (appears on hover) */}
+                        <div className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-2 group-hover:translate-y-0">
+                          <Button
+                            onClick={(e) => handleAddToCart(e, product)}
+                            size="icon"
+                            className="rounded-full w-10 h-10 bg-[#ffd76a] text-[#2b1d0e] hover:bg-[#e6c25e] shadow-lg"
+                          >
+                            <ShoppingCart className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </div>
 
                       {Array.isArray(product.colors) && product.colors.length > 0 && (
@@ -283,7 +316,7 @@ const NewProducts = () => {
 
                       <div className="mt-2 flex items-center gap-3">
                         {typeof oldPrice === "number" && oldPrice > newPrice && (
-                          <p className="text-sm  line-through">
+                          <p className="text-sm line-through text-[#f8f3e7]/60">
                             {formatPrice(oldPrice)}
                           </p>
                         )}
@@ -291,6 +324,7 @@ const NewProducts = () => {
                       </div>
                     </Link>
 
+                    {/* Wishlist button */}
                     <button
                       onClick={(e) => {
                         e.preventDefault();
