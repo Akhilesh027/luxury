@@ -6,7 +6,6 @@ import { Link } from "react-router-dom";
 import { useCart } from "@/contexts/CartContext";
 import { toast } from "@/hooks/use-toast";
 
-// ✅ API base – change if deployed
 const API_BASE = "https://api.jsgallor.com/api/luxury";
 const TOKEN_KEY = "luxury_auth_token";
 
