@@ -21,8 +21,6 @@ type Product = {
   subcategory?: string;
   image?: string;
   images?: string[];
-  color?: string | string[];     // may be a single hex or an array
-  colors?: string[];             // alternative field
   oldPrice?: number;
   newPrice?: number;
   price?: number;
@@ -39,34 +37,6 @@ const pickImage = (p: Product) => p.image || (Array.isArray(p.images) ? p.images
 const pickNewPrice = (p: Product) =>
   typeof p.newPrice === "number" ? p.newPrice : typeof p.price === "number" ? p.price : 0;
 
-// Extract all unique colors from products (supports both `color` and `colors` fields)
-const getUniqueColors = (products: Product[]): string[] => {
-  const colorsSet = new Set<string>();
-  products.forEach(p => {
-    let colors: string[] = [];
-    if (Array.isArray(p.color)) colors = p.color;
-    else if (typeof p.color === "string") colors = [p.color];
-    else if (Array.isArray(p.colors)) colors = p.colors;
-    colors.forEach(c => colorsSet.add(c));
-  });
-  return Array.from(colorsSet);
-};
-
-// Map hex to human‑readable names (optional, extend as needed)
-const getColorName = (hex: string) => {
-  const colors: Record<string, string> = {
-    "#8B7355": "Brown",
-    "#1C1C1C": "Black",
-    "#F5E6D3": "White",
-    "#4A4A4A": "Grey",
-    "#4A6741": "Green",
-    "#2C3E50": "Blue",
-    "#C0C0C0": "Silver",
-    "#FFD700": "Gold",
-  };
-  return colors[hex.toUpperCase()] || hex;
-};
-
 const Catalog = () => {
   const { categorySlug, subCategorySlug } = useParams<{
     categorySlug?: string;
@@ -80,10 +50,9 @@ const Catalog = () => {
 
   const { isFavorite, toggleFavorite } = useFavorites();
 
-  // URL filter values
-  const activeColor = searchParams.get("color");
   const activePriceMin = searchParams.get("priceMin");
   const activePriceMax = searchParams.get("priceMax");
+  const searchQuery = searchParams.get("search") || "";
 
   const activeCategorySlug = (categorySlug || "").trim() || null;
   const activeSubSlug = (subCategorySlug || "").trim() || null;
@@ -92,87 +61,76 @@ const Catalog = () => {
   const [loading, setLoading] = useState(true);
   const [errMsg, setErrMsg] = useState<string | null>(null);
 
-  // Fetch products
+  // Build API URL with category/subcategory filters (server-side)
+  const buildApiUrl = () => {
+    const url = new URL(`${API_BASE}/products`);
+    url.searchParams.set("status", "approved");
+    url.searchParams.set("tier", "luxury");
+    url.searchParams.set("limit", "200");
+
+    if (activeCategorySlug) {
+      url.searchParams.set("category", activeCategorySlug);
+    }
+    if (activeSubSlug) {
+      url.searchParams.set("subcategory", activeSubSlug);
+    }
+    return url.toString();
+  };
+
+  // Fetch products when category/subcategory changes
   useEffect(() => {
     let mounted = true;
+    const abortController = new AbortController();
 
-    (async () => {
+    const fetchProducts = async () => {
       try {
         setLoading(true);
         setErrMsg(null);
 
         const token = getToken();
-        const res = await fetch(`${API_BASE}/products?status=approved&tier=luxury&limit=200`, {
+        const url = buildApiUrl();
+        console.log("Fetching products from:", url);
+
+        const res = await fetch(url, {
           headers: {
             "Content-Type": "application/json",
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
+          signal: abortController.signal,
         });
 
         const json = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(json?.message || `Failed to load products (${res.status})`);
 
-        const list: Product[] = Array.isArray(json?.products)
-          ? json.products
-          : Array.isArray(json?.data)
-          ? json.data
-          : Array.isArray(json)
-          ? json
-          : [];
+        let list: Product[] = [];
+        if (Array.isArray(json?.products)) list = json.products;
+        else if (Array.isArray(json?.data)) list = json.data;
+        else if (Array.isArray(json)) list = json;
 
-        const filtered = list.filter(
-          (p) => norm(p.status) === "approved" && norm(p.tier) === "luxury"
-        );
-
-        if (mounted) setProducts(filtered);
-      } catch (e) {
+        if (mounted) setProducts(list);
+      } catch (err: any) {
+        if (err.name === "AbortError") return;
         if (mounted) {
           setProducts([]);
-          setErrMsg(e instanceof Error ? e.message : "Failed to load products");
+          setErrMsg(err.message || "Failed to load products");
         }
       } finally {
         if (mounted) setLoading(false);
       }
-    })();
+    };
+
+    fetchProducts();
 
     return () => {
       mounted = false;
+      abortController.abort();
     };
-  }, []);
+  }, [activeCategorySlug, activeSubSlug]);
 
-  // Sync URL with category/subcategory from route
-  useEffect(() => {
-    const newParams = new URLSearchParams(searchParams);
-    if (activeCategorySlug) newParams.set("category", activeCategorySlug);
-    else newParams.delete("category");
-    if (activeSubSlug) newParams.set("subcategory", activeSubSlug);
-    else newParams.delete("subcategory");
-    if (newParams.toString() !== searchParams.toString())
-      setSearchParams(newParams, { replace: true });
-  }, [activeCategorySlug, activeSubSlug, searchParams, setSearchParams]);
-
-  // Compute available colors from products
-  const availableColors = useMemo(() => getUniqueColors(products), [products]);
-
-  // Filter products based on URL params
+  // Client-side filtering for price and search, plus sorting
   const filteredProducts = useMemo(() => {
     let result = [...products];
 
-    if (activeCategorySlug) {
-      result = result.filter((p) => norm(p.category) === norm(activeCategorySlug));
-    }
-    if (activeSubSlug) {
-      result = result.filter((p) => norm((p as any).subcategory) === norm(activeSubSlug));
-    }
-    if (activeColor) {
-      result = result.filter((p) => {
-        let productColors: string[] = [];
-        if (Array.isArray(p.color)) productColors = p.color;
-        else if (typeof p.color === "string") productColors = [p.color];
-        else if (Array.isArray(p.colors)) productColors = p.colors;
-        return productColors.some(c => c === activeColor);
-      });
-    }
     if (activePriceMin && activePriceMax) {
       const min = Number(activePriceMin);
       const max = Number(activePriceMax);
@@ -180,6 +138,16 @@ const Catalog = () => {
         const price = pickNewPrice(p);
         return price >= min && price <= max;
       });
+    }
+
+    if (searchQuery.trim()) {
+      const lowerQuery = searchQuery.toLowerCase();
+      result = result.filter(
+        (p) =>
+          pickTitle(p).toLowerCase().includes(lowerQuery) ||
+          (p.description && p.description.toLowerCase().includes(lowerQuery)) ||
+          (p.type && p.type.toLowerCase().includes(lowerQuery))
+      );
     }
 
     switch (sortBy) {
@@ -197,15 +165,7 @@ const Catalog = () => {
     }
 
     return result;
-  }, [
-    products,
-    activeCategorySlug,
-    activeSubSlug,
-    activeColor,
-    activePriceMin,
-    activePriceMax,
-    sortBy,
-  ]);
+  }, [products, activePriceMin, activePriceMax, searchQuery, sortBy]);
 
   const setFilter = (key: string, value: string | null) => {
     const newParams = new URLSearchParams(searchParams);
@@ -218,6 +178,7 @@ const Catalog = () => {
     const newParams = new URLSearchParams();
     if (activeCategorySlug) newParams.set("category", activeCategorySlug);
     if (activeSubSlug) newParams.set("subcategory", activeSubSlug);
+    if (searchQuery) newParams.set("search", searchQuery);
     setSearchParams(newParams);
   };
 
@@ -228,11 +189,7 @@ const Catalog = () => {
       maximumFractionDigits: 0,
     }).format(price);
 
-  const hasActiveFilters =
-    !!activeCategorySlug ||
-    !!activeSubSlug ||
-    !!activeColor ||
-    !!activePriceMin;
+  const hasActiveFilters = !!activeCategorySlug || !!activeSubSlug || !!activePriceMin;
 
   return (
     <div className="min-h-screen bg-gradient-to-r from-[#7a5a1e] via-[#d4af37] to-[#7a5a1e] relative overflow-x-hidden">
@@ -247,6 +204,7 @@ const Catalog = () => {
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-heading font-bold text-white drop-shadow-lg break-words">
               {activeCategorySlug ? `Catalog • ${activeCategorySlug}` : "Catalog"}
               {activeSubSlug ? ` • ${activeSubSlug}` : ""}
+              {searchQuery && ` • Search: "${searchQuery}"`}
             </h1>
             <p className="text-sm sm:text-base text-white/80 mt-1">
               {loading ? "Loading..." : `${filteredProducts.length} products`}
@@ -282,7 +240,7 @@ const Catalog = () => {
         </div>
 
         <div className="flex gap-6 lg:gap-8">
-          {/* Filters Sidebar */}
+          {/* Filters Sidebar (no color) */}
           <aside
             className={`${
               showFilters
@@ -327,26 +285,6 @@ const Catalog = () => {
                     Go to all products
                   </Link>
                 </div>
-              )}
-
-              {/* Color Filter – only shown when colors exist */}
-              {availableColors.length > 0 && (
-                <FilterSection title="Color">
-                  {availableColors.map((color) => (
-                    <FilterItem
-                      key={color}
-                      label={getColorName(color)}
-                      active={activeColor === color}
-                      onClick={() => setFilter("color", activeColor === color ? null : color)}
-                      icon={
-                        <span
-                          className="inline-block w-3 h-3 rounded-full mr-2"
-                          style={{ backgroundColor: color }}
-                        />
-                      }
-                    />
-                  ))}
-                </FilterSection>
               )}
 
               {/* Price Range Filter */}

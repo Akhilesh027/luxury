@@ -9,6 +9,7 @@
 //        - auto recalculates when selected address changes
 //        - sends shipping object + totals to backend
 // ✅ GST: dynamic per‑product GST (from cart context)
+// ✅ ENHANCED ORDER SUMMARY: shows original total, product discount, breakdown
 
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -238,7 +239,39 @@ const Checkout = () => {
     return Math.max(0, Number(shippingBase || 0) - Number(shippingDiscount || 0));
   }, [shippingBase, shippingDiscount]);
 
-  // ✅ Final total includes GST
+  // ✅ Compute product discount totals from items
+  const productDiscountDetails = useMemo(() => {
+    let originalTotal = 0;
+    let discountedTotal = 0;
+    let discountAmount = 0;
+    let hasDiscount = false;
+    let firstDiscountPercent = 0;
+
+    for (const item of items) {
+      const qty = item.quantity;
+      const origPrice = item.originalPrice || item.price; // fallback to price if no original
+      const finalPrice = item.price; // already discounted price
+      const lineOriginal = origPrice * qty;
+      const lineDiscounted = finalPrice * qty;
+      originalTotal += lineOriginal;
+      discountedTotal += lineDiscounted;
+      const itemDiscount = lineOriginal - lineDiscounted;
+      if (itemDiscount > 0) hasDiscount = true;
+      if (item.discountPercent && item.discountPercent > 0 && firstDiscountPercent === 0) {
+        firstDiscountPercent = item.discountPercent;
+      }
+    }
+    discountAmount = originalTotal - discountedTotal;
+    return {
+      originalTotal,
+      discountedTotal,
+      discountAmount,
+      hasDiscount,
+      firstDiscountPercent,
+    };
+  }, [items]);
+
+  // Final total already includes totalPrice (discounted subtotal) - discount + shipping + totalGst
   const finalTotal = useMemo(() => {
     return Math.max(0, totalPrice - discount) + shipping + totalGst;
   }, [totalPrice, discount, shipping, totalGst]);
@@ -276,6 +309,12 @@ const Checkout = () => {
   }, [items.length, orderPlaced, navigate]);
 
   const fetchAddresses = async () => {
+    const token = getToken();
+    if (!token) {
+      setLoadingAddresses(false);
+      return;
+    }
+
     setLoadingAddresses(true);
     try {
       const data = await apiFetch("/luxury/addresses", { method: "GET" });
@@ -296,6 +335,19 @@ const Checkout = () => {
       setLoadingAddresses(false);
     }
   };
+
+  useEffect(() => {
+    const token = getToken();
+    if (!token) {
+      toast({
+        title: "Login required",
+        description: "Please login to continue checkout.",
+      });
+      navigate("/");
+      return;
+    }
+    fetchAddresses();
+  }, [navigate]);
 
   useEffect(() => {
     fetchAddresses();
@@ -555,8 +607,8 @@ const Checkout = () => {
         order_id: rpOrder.id,
         amount: rpOrder.amount,
         currency: rpOrder.currency,
-    name: "JSGALLOR",
-            description: "Order Payment",
+        name: "JSGALLOR",
+        description: "Order Payment",
         prefill: {
           name: prefillName || selectedAddress?.label || "",
           email: selectedAddress?.email || "",
@@ -646,13 +698,13 @@ const Checkout = () => {
           color: it.attributes?.color || it.color || "",
           price: Number(it.price || 0),
           quantity: Number(it.quantity || 1),
-          gst: it.gst || 0,                     // ✅ send per‑item GST (optional)
+          gst: it.gst || 0,
         })),
 
         totals: {
           subtotal: Number(totalPrice) || 0,
           discount: Number(discount) || 0,
-          gst: Number(totalGst) || 0,           // ✅ dynamic GST total
+          gst: Number(totalGst) || 0,
           shippingBase: Number(shippingBase) || 0,
           shippingDiscount: Number(shippingDiscount) || 0,
           shipping: Number(shipping) || 0,
@@ -993,6 +1045,7 @@ const Checkout = () => {
             )}
           </div>
 
+          {/* ========== ENHANCED ORDER SUMMARY ========== */}
           <div className="lg:col-span-1">
             <div className="bg-black/40 backdrop-blur-sm rounded-xl border border-white/20 p-6 sticky top-24">
               <h2 className="text-xl font-heading font-bold text-white drop-shadow-lg mb-6">Order Summary</h2>
@@ -1050,51 +1103,48 @@ const Checkout = () => {
                 </div>
               ) : null}
 
-              <div className="mb-4 rounded-xl border border-white/20 bg-black/60 p-3">
-                {!selectedAddress ? (
-                  <p className="text-sm text-white/80">Select address to calculate shipping</p>
-                ) : shippingLoading ? (
-                  <p className="text-sm text-white/80 inline-flex items-center gap-2">
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Calculating shipping...
-                  </p>
-                ) : shippingMeta.found ? (
-                  <div>
-                    <p className="text-sm font-medium text-white">
-                      Shipping for {selectedAddress.city}
-                      {selectedAddress.pincode ? ` - ${selectedAddress.pincode}` : ""}
-                    </p>
-                    {shippingMeta.appliedRule && (
-                      <p className="text-xs text-white/60 mt-1">
-                        Rule: {shippingMeta.appliedRule.replace(/_/g, " ")}
-                      </p>
-                    )}
-                  </div>
-                ) : (
-                  <p className="text-sm text-emerald-300 font-medium">
-                    No shipping rule matched. Free shipping applied.
-                  </p>
+              {/* Pricing Breakdown */}
+              <div className="space-y-3 border-b border-white/20 pb-4 mb-4">
+                {/* Original Total (if product discount exists) */}
+                {productDiscountDetails.hasDiscount && (
+                  <>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-white/70">Original Total</span>
+                      <span className="text-white/70 line-through">
+                        {formatPrice(productDiscountDetails.originalTotal)}
+                      </span>
+                    </div>
+                    {/* Product Discount */}
+                    <div className="flex justify-between text-sm text-emerald-300">
+                      <span>
+                        Product Discount ({productDiscountDetails.firstDiscountPercent || 0}% off)
+                      </span>
+                      <span>-{formatPrice(productDiscountDetails.discountAmount)}</span>
+                    </div>
+                  </>
                 )}
-              </div>
 
-              <div className="space-y-3 border-t border-white/20 pt-4">
-                <div className="flex justify-between text-sm">
-                  <span className="text-white/70">Subtotal</span>
+                {/* Subtotal after product discount */}
+                <div className="flex justify-between text-sm font-medium">
+                  <span className="text-white/70">Subtotal after discount</span>
                   <span className="text-white">{formatPrice(totalPrice)}</span>
                 </div>
 
-                {discount > 0 && (
-                  <div className="flex justify-between text-sm text-emerald-300">
-                    <span>Discount</span>
-                    <span>-{formatPrice(discount)}</span>
-                  </div>
-                )}
-
+                {/* GST */}
                 <div className="flex justify-between text-sm">
                   <span className="text-white/70">GST</span>
                   <span className="text-white">{formatPrice(totalGst)}</span>
                 </div>
 
+                {/* Coupon Discount */}
+                {discount > 0 && (
+                  <div className="flex justify-between text-sm text-emerald-300">
+                    <span>Coupon Discount</span>
+                    <span>-{formatPrice(discount)}</span>
+                  </div>
+                )}
+
+                {/* Shipping */}
                 <div className="flex justify-between text-sm">
                   <span className="text-white/70">Shipping</span>
                   <span className="text-white">
@@ -1108,17 +1158,18 @@ const Checkout = () => {
                     <span>-{formatPrice(shippingDiscount)}</span>
                   </div>
                 )}
+              </div>
 
-                <div className="flex justify-between font-bold text-lg pt-2 border-t border-white/20">
-                  <span className="text-white">Total</span>
-                  <span className="text-[#d4af37]">{formatPrice(finalTotal)}</span>
-                </div>
+              {/* Grand Total */}
+              <div className="flex justify-between items-center mb-6">
+                <span className="text-white font-bold text-lg">Total Amount</span>
+                <span className="text-[#d4af37] font-bold text-2xl">{formatPrice(finalTotal)}</span>
+              </div>
 
-                <div className="pt-3">
-                  <p className="text-xs text-white/60">
-                    Payment: <span className="capitalize text-white/80">{paymentMethod}</span>
-                  </p>
-                </div>
+              <div className="pt-3">
+                <p className="text-xs text-white/60">
+                  Payment: <span className="capitalize text-white/80">{paymentMethod}</span>
+                </p>
               </div>
             </div>
           </div>

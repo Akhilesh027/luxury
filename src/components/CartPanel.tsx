@@ -19,6 +19,22 @@ const CartPanel = ({ onClose }: CartPanelProps) => {
     }).format(price);
   };
 
+  // Helper to handle quantity changes
+  const handleQuantityChange = (
+    id: string,
+    newQuantity: number,
+    color?: string
+  ) => {
+    if (newQuantity <= 0) {
+      // Remove item when quantity becomes 0 or negative
+      removeItem(id, color);
+    } else {
+      // Optional: add max stock check here if available
+      // e.g., if (maxStock && newQuantity > maxStock) return;
+      updateQuantity(id, newQuantity, color);
+    }
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: -10 }}
@@ -30,7 +46,6 @@ const CartPanel = ({ onClose }: CartPanelProps) => {
         <h3 className="text-gold font-heading font-semibold">
           Your Cart {totalItems > 0 ? `(${totalItems})` : ""}
         </h3>
-
         <button
           onClick={onClose}
           className="text-sm text-muted-foreground hover:text-foreground"
@@ -82,8 +97,13 @@ const CartPanel = ({ onClose }: CartPanelProps) => {
                       size="icon"
                       className="h-8 w-8"
                       onClick={() =>
-                        updateQuantity(item.id, item.quantity - 1, item.color)
+                        handleQuantityChange(
+                          item.id,
+                          item.quantity - 1,
+                          item.color
+                        )
                       }
+                      disabled={item.quantity <= 1} // optional: disable minus at 1
                     >
                       <Minus className="w-4 h-4" />
                     </Button>
@@ -97,8 +117,13 @@ const CartPanel = ({ onClose }: CartPanelProps) => {
                       size="icon"
                       className="h-8 w-8"
                       onClick={() =>
-                        updateQuantity(item.id, item.quantity + 1, item.color)
+                        handleQuantityChange(
+                          item.id,
+                          item.quantity + 1,
+                          item.color
+                        )
                       }
+                      // optional: add disabled if max stock reached
                     >
                       <Plus className="w-4 h-4" />
                     </Button>
@@ -135,7 +160,6 @@ const CartPanel = ({ onClose }: CartPanelProps) => {
                 View Cart
               </Button>
             </Link>
-
             <Link to="/checkout" className="flex-1" onClick={onClose}>
               <Button variant="gold" className="w-full">
                 Checkout

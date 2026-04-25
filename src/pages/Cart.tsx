@@ -86,9 +86,28 @@ const getColorName = (hex: string) => {
   return colors[hex.toUpperCase()] || hex;
 };
 
+// Helper: compute discounted price (handles inclusive/exclusive based on flag)
+function getDiscountedPrice(
+  originalPrice: number,
+  discountPercent: number,
+  priceIncludesGst: boolean = true,
+  gstPercent: number = 0
+): { discountedInclusive: number; discountedExclusive: number } {
+  const discountFactor = 1 - discountPercent / 100;
+  if (priceIncludesGst) {
+    const discountedInclusive = originalPrice * discountFactor;
+    const discountedExclusive = discountedInclusive / (1 + gstPercent / 100);
+    return { discountedInclusive, discountedExclusive };
+  } else {
+    const discountedExclusive = originalPrice * discountFactor;
+    const discountedInclusive = discountedExclusive * (1 + gstPercent / 100);
+    return { discountedInclusive, discountedExclusive };
+  }
+}
+
 const Cart = () => {
   const navigate = useNavigate();
-  const { items, updateQuantity, removeItem, totalPrice, clearCart, totalItems, totalGst, syncNow } = useCart();
+  const { items, updateQuantity, removeItem, clearCart, syncNow } = useCart();
   const { isAuthenticated, token: authToken } = useAuth();
 
   const formatPrice = (price: number) =>
@@ -98,9 +117,64 @@ const Cart = () => {
       maximumFractionDigits: 0,
     }).format(price);
 
-  // ✅ FREE SHIPPING – always zero
-  const shippingBase = 0;
+  // ========== Detailed pricing calculations (based on originalPrice/discountPercent) ==========
+  const detailedPricing = useMemo(() => {
+    let originalTotalInclusive = 0;
+    let discountedTotalInclusive = 0;
+    let totalGst = 0;
+    let totalDiscountInclusive = 0;
+    let firstDiscountPercent = 0;
 
+    for (const item of items) {
+      const origPrice = item.originalPrice || 0;
+      const discPercent = item.discountPercent || 0;
+      const gstPercent = item.gst || 0;
+      const priceIncludesGst = (item as any).priceIncludesGst ?? true; // luxury tier typically includes GST
+      const qty = item.quantity;
+
+      const { discountedInclusive, discountedExclusive } = getDiscountedPrice(
+        origPrice,
+        discPercent,
+        priceIncludesGst,
+        gstPercent
+      );
+
+      let originalInclusive: number;
+      if (priceIncludesGst) {
+        originalInclusive = origPrice;
+      } else {
+        originalInclusive = origPrice * (1 + gstPercent / 100);
+      }
+
+      const lineOriginalInclusive = originalInclusive * qty;
+      const lineDiscountedInclusive = discountedInclusive * qty;
+      const lineGst = discountedExclusive * qty * (gstPercent / 100);
+
+      originalTotalInclusive += lineOriginalInclusive;
+      discountedTotalInclusive += lineDiscountedInclusive;
+      totalGst += lineGst;
+      totalDiscountInclusive += lineOriginalInclusive - lineDiscountedInclusive;
+
+      if (discPercent > 0 && firstDiscountPercent === 0) {
+        firstDiscountPercent = discPercent;
+      }
+    }
+
+    return {
+      originalTotalInclusive,
+      discountedTotalInclusive,
+      totalGst,
+      totalDiscountInclusive,
+      firstDiscountPercent,
+    };
+  }, [items]);
+
+  // Use detailed pricing for display
+  const effectiveSubtotal = detailedPricing.discountedTotalInclusive;
+  const effectiveGst = detailedPricing.totalGst;
+  const totalDiscountAmount = detailedPricing.totalDiscountInclusive;
+
+  // Coupon state
   const [couponCode, setCouponCode] = useState("");
   const [couponLoading, setCouponLoading] = useState(false);
   const [couponApplied, setCouponApplied] = useState<ApplyCouponResponse["coupon"] | null>(null);
@@ -108,10 +182,12 @@ const Cart = () => {
   const [shippingDiscount, setShippingDiscount] = useState(0);
   const [isSyncing, setIsSyncing] = useState(false);
 
+  // FREE shipping (luxury tier)
+  const shippingBase = 0;
   const shipping = Math.max(0, shippingBase - shippingDiscount);
-  const finalTotal = Math.max(0, totalPrice - discount) + shipping + totalGst;
+  const finalTotal = Math.max(0, effectiveSubtotal - discount) + shipping + effectiveGst;
 
-  // Helper to generate a stable identifier for an item (same as context's getItemMatchKey)
+  // Helper for item identifier (same as context)
   const getItemIdentifier = (item: CartItem): string => {
     if (item.cartItemId) return item.cartItemId;
     const base = item.id;
@@ -126,23 +202,14 @@ const Cart = () => {
   useEffect(() => {
     const checkPendingCheckout = async () => {
       const pendingCart = sessionStorage.getItem('checkout_pending_cart');
-      
       if (pendingCart && isAuthenticated && authToken) {
         setIsSyncing(true);
         try {
-          // Sync cart to server
           await syncNow();
-          
           const pendingData = JSON.parse(pendingCart);
-          
-          // Check if pending data is still valid (less than 1 hour old)
           if (pendingData.timestamp && Date.now() - pendingData.timestamp < 3600000) {
-            // Clear pending cart
             sessionStorage.removeItem('checkout_pending_cart');
-            
             toast.success("Cart synced! Redirecting to checkout...");
-            
-            // Navigate to checkout with stored state
             navigate("/checkout", {
               state: {
                 coupon: pendingData.coupon,
@@ -151,7 +218,6 @@ const Cart = () => {
               replace: true
             });
           } else {
-            // Pending data expired
             sessionStorage.removeItem('checkout_pending_cart');
             toast.info("Please review your cart before checkout");
           }
@@ -163,10 +229,10 @@ const Cart = () => {
         }
       }
     };
-
     checkPendingCheckout();
   }, [isAuthenticated, authToken, syncNow, navigate]);
 
+  // Coupon persistence
   useEffect(() => {
     try {
       const saved = localStorage.getItem(LS_COUPON_KEY);
@@ -197,7 +263,18 @@ const Cart = () => {
   const buildCouponItemsPayload = () => {
     return items.map((item: any) => {
       const qty = Number(item?.quantity || 1);
-      const unitPrice = Number(item?.price ?? 0);
+      // Use discounted exclusive price for coupon calculation
+      const origPrice = item.originalPrice || 0;
+      const discPercent = item.discountPercent || 0;
+      const gstPercent = item.gst || 0;
+      const priceIncludesGst = (item as any).priceIncludesGst ?? true;
+      const { discountedExclusive } = getDiscountedPrice(
+        origPrice,
+        discPercent,
+        priceIncludesGst,
+        gstPercent
+      );
+      const unitPrice = discountedExclusive;
 
       return {
         productId: item?.id || item?.productId,
@@ -214,12 +291,10 @@ const Cart = () => {
 
   const applyCouponInternal = async (codeRaw: string, silent = false) => {
     const code = codeRaw.trim().toUpperCase();
-
     if (!code) {
       if (!silent) toast.error("Enter coupon code");
       return;
     }
-
     if (items.length === 0) {
       if (!silent) toast.error("Cart is empty");
       return;
@@ -227,22 +302,19 @@ const Cart = () => {
 
     try {
       setCouponLoading(true);
-
       const userId = getSavedUserId();
-
       const res = await apiFetch("/coupons/apply", {
         method: "POST",
         body: JSON.stringify({
           code,
-          cartTotal: Number(totalPrice) || 0,
-          shipping: Number(shippingBase) || 0,
+          cartTotal: effectiveSubtotal,
+          shipping: shippingBase,
           userId: userId || undefined,
           items: buildCouponItemsPayload(),
         }),
       });
 
       const json = await res.json();
-
       if (!res.ok) {
         setCouponApplied(null);
         setDiscount(0);
@@ -254,7 +326,6 @@ const Cart = () => {
 
       const data: ApplyCouponResponse = json?.data || json;
       const ok = data?.success === true || data?.valid === true || !!data?.coupon;
-
       if (!ok) {
         setCouponApplied(null);
         setDiscount(0);
@@ -285,7 +356,6 @@ const Cart = () => {
       setCouponApplied(normalizedCoupon);
       setDiscount(d);
       setShippingDiscount(sd);
-
       persistCoupon({
         code: normalizedCoupon?.code || code,
         coupon: normalizedCoupon,
@@ -314,14 +384,14 @@ const Cart = () => {
     toast.message("Coupon removed");
   };
 
+  // Re-check coupon when cart changes
   useEffect(() => {
     if (!couponApplied?.code) return;
     applyCouponInternal(couponApplied.code, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [totalPrice, shippingBase, items.length]);
+  }, [effectiveSubtotal, shippingBase, items.length]);
 
   const goToCheckout = async () => {
-    // Sync cart only if logged in
     if (isAuthenticated && authToken) {
       setIsSyncing(true);
       try {
@@ -337,15 +407,14 @@ const Cart = () => {
       }
     }
 
-    const token = getToken();
-    const userId = getSavedUserId();
-
     navigate("/checkout", {
       state: {
-        isGuest: !token || !userId
-      }
+        isGuest: !getToken() || !getSavedUserId(),
+      },
     });
   };
+
+  const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
 
   if (items.length === 0) {
     return (
@@ -416,12 +485,14 @@ const Cart = () => {
         </div>
 
         <div className="grid lg:grid-cols-3 gap-8">
+          {/* Cart Items */}
           <div className="lg:col-span-2 space-y-4">
             {items.map((item, index) => {
               const identifier = getItemIdentifier(item);
               const color = item.attributes?.color;
               const size = item.attributes?.size;
               const fabric = item.attributes?.fabric;
+              const hasDiscount = (item.discountPercent || 0) > 0;
 
               return (
                 <motion.div
@@ -474,6 +545,18 @@ const Cart = () => {
                         </div>
                       )}
 
+                      {/* Discount / Original price display */}
+                      {hasDiscount && (
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-xs line-through text-white/50">
+                            {formatPrice(item.originalPrice)}
+                          </span>
+                          <span className="text-xs bg-emerald-600/70 text-white px-1.5 py-0.5 rounded-full">
+                            {item.discountPercent}% OFF
+                          </span>
+                        </div>
+                      )}
+
                       {/* Customizable badge */}
                       {(item as any).isCustomized && (
                         <span className="inline-block mt-2 text-[10px] text-amber-300 bg-amber-900/30 px-2 py-0.5 rounded-full">
@@ -515,7 +598,6 @@ const Cart = () => {
                         onClick={() => removeItem(identifier)}
                         className="text-white/70 hover:text-red-400 transition-colors"
                         aria-label="Remove item"
-                        title="Remove"
                       >
                         <Trash2 className="w-5 h-5" />
                       </button>
@@ -567,66 +649,75 @@ const Cart = () => {
                 )}
               </div>
 
-              {couponApplied ? (
+              {couponApplied && (
                 <div className="mt-2 text-xs text-white/70">
                   Applied:{" "}
                   <span className="font-semibold text-[#d4af37]">{couponApplied.code}</span>
-                  {discount > 0 ? (
-                    <span className="ml-2 text-emerald-500">(-{formatPrice(discount)})</span>
-                  ) : null}
-                  {shippingDiscount > 0 ? (
-                    <span className="ml-2 text-emerald-500">
-                      (-{formatPrice(shippingDiscount)} shipping)
-                    </span>
-                  ) : null}
+                  {discount > 0 && <span className="ml-2 text-emerald-500">(-{formatPrice(discount)})</span>}
+                  {shippingDiscount > 0 && <span className="ml-2 text-emerald-500">(-{formatPrice(shippingDiscount)} shipping)</span>}
                 </div>
-              ) : null}
+              )}
             </div>
           </div>
 
-          {/* Order summary */}
+          {/* ========== ENHANCED ORDER SUMMARY ========== */}
           <div className="lg:col-span-1">
             <div className="bg-black/40 backdrop-blur-sm rounded-xl border border-white/20 p-6 sticky top-24">
               <h2 className="text-xl font-heading font-bold text-white mb-6">Order Summary</h2>
 
-              <div className="space-y-4 border-b border-white/10 pb-4 mb-4">
-                <div className="flex justify-between">
-                  <span className="text-white/70">Subtotal</span>
-                  <span className="text-white">{formatPrice(totalPrice)}</span>
+              <div className="space-y-3 border-b border-white/10 pb-4 mb-4">
+                {/* 1. Original Total (if discount exists) */}
+                {totalDiscountAmount > 0 && (
+                  <>
+                    <div className="flex justify-between">
+                      <span className="text-white/70">Original Total</span>
+                      <span className="text-white/70 line-through">
+                        {formatPrice(detailedPricing.originalTotalInclusive)}
+                      </span>
+                    </div>
+                    {/* 2. Product Discount (amount and percentage) */}
+                    <div className="flex justify-between text-emerald-500">
+                      <span>Product Discount ({detailedPricing.firstDiscountPercent || 0}% off)</span>
+                      <span>-{formatPrice(totalDiscountAmount)}</span>
+                    </div>
+                  </>
+                )}
+
+                {/* 3. Subtotal after product discount */}
+                <div className="flex justify-between font-medium">
+                  <span className="text-white/70">Subtotal after discount</span>
+                  <span className="text-white">{formatPrice(effectiveSubtotal)}</span>
                 </div>
 
+                {/* 4. GST (calculated on discounted price) */}
+                <div className="flex justify-between">
+                  <span className="text-white/70">GST</span>
+                  <span className="text-white">{formatPrice(effectiveGst)}</span>
+                </div>
+
+                {/* 5. Coupon Discount (if any) */}
                 {discount > 0 && (
                   <div className="flex justify-between text-emerald-500">
-                    <span>Discount</span>
+                    <span>Coupon Discount</span>
                     <span>-{formatPrice(discount)}</span>
                   </div>
                 )}
 
-                {shippingDiscount > 0 && (
-                  <div className="flex justify-between text-emerald-500">
-                    <span>Shipping Discount</span>
-                    <span>-{formatPrice(shippingDiscount)}</span>
-                  </div>
-                )}
-
-                <div className="flex justify-between">
-                  <span className="text-white/70">GST</span>
-                  <span className="text-white">{formatPrice(totalGst)}</span>
-                </div>
-
+                {/* 6. Shipping (Free) */}
                 <div className="flex justify-between">
                   <span className="text-white/70">Shipping</span>
-                  <span className="text-white">Free</span>
+                  <span className="text-emerald-500">Free</span>
                 </div>
 
-                {/* Always show free shipping message */}
+                {/* Free shipping message */}
                 <div className="text-xs text-emerald-500 mt-1">
                   ✨ Free shipping on all orders
                 </div>
               </div>
 
+              {/* 7. Grand Total */}
               <div className="flex justify-between text-lg font-bold mb-6">
-                <span className="text-white">Total</span>
+                <span className="text-white">Total Amount</span>
                 <span className="text-[#d4af37]">{formatPrice(finalTotal)}</span>
               </div>
 

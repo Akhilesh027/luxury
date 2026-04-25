@@ -703,9 +703,7 @@ const ProductDetail = () => {
           <div className="max-w-4xl">
             <h2 className="text-2xl font-heading font-bold text-white mb-4">Product Description</h2>
             {/* ✅ Full description with preserved line breaks */}
-            <div className="text-white/80 leading-relaxed text-base whitespace-pre-wrap">
-              {product.description || "No description available."}
-            </div>
+            
 
             <div className="mt-6 grid sm:grid-cols-2 gap-4">
               {[

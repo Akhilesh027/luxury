@@ -1,4 +1,4 @@
-// Header.tsx – updated with search functionality
+// Header.tsx – with fixed search (abort controller, clearSearch, error handling)
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Search, MapPin, User, Heart, ShoppingBag, Menu, ChevronDown, X } from "lucide-react";
@@ -46,7 +46,7 @@ type CategoriesResponse = {
 
 type SearchResult = {
   _id: string;
-  id: string;
+  id?: string;
   name: string;
   slug: string;
   price: number;
@@ -96,10 +96,12 @@ const Header = () => {
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showSearchResults, setShowSearchResults] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<{ city: string; pin: string } | null>(null);
   const searchRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchDebounceRef = useRef<NodeJS.Timeout>();
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const { totalItems } = useCart();
   const { favorites } = useFavorites();
@@ -108,27 +110,51 @@ const Header = () => {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  // Search function
+  // Search function with abort controller
   const performSearch = useCallback(async (query: string) => {
+    // Cancel previous request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
     if (!query.trim()) {
       setSearchResults([]);
       setShowSearchResults(false);
+      setSearchError(null);
       return;
     }
 
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
     setIsSearching(true);
+    setSearchError(null);
+
     try {
-      const response = await fetch(`${API_BASE}/luxury/products/search?q=${encodeURIComponent(query)}&limit=10`);
+      const response = await fetch(
+        `${API_BASE}/luxury/products/search?q=${encodeURIComponent(query)}&limit=10`,
+        { signal: controller.signal }
+      );
+      
+      if (!response.ok) {
+        throw new Error(`Search failed (${response.status})`);
+      }
+      
       const data = await response.json();
       
-      if (data.success && data.data) {
+      if (data.success && Array.isArray(data.data)) {
         setSearchResults(data.data);
         setShowSearchResults(true);
       } else {
         setSearchResults([]);
+        // If backend returns success: false or missing data, treat as no results
       }
-    } catch (error) {
+    } catch (error: any) {
+      if (error.name === "AbortError") {
+        // Request was cancelled, ignore
+        return;
+      }
       console.error("Search error:", error);
+      setSearchError(error.message || "Search failed");
       setSearchResults([]);
     } finally {
       setIsSearching(false);
@@ -159,7 +185,6 @@ const Header = () => {
         setShowSearchResults(false);
       }
     };
-
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
@@ -172,17 +197,13 @@ const Header = () => {
         setSearchQuery("");
       }
     };
-
     document.addEventListener("keydown", handleEscKey);
     return () => document.removeEventListener("keydown", handleEscKey);
   }, []);
 
   const handleUserClick = () => {
-    if (isAuthenticated) {
-      navigate("/profile");
-    } else {
-      navigate("/auth");
-    }
+    if (isAuthenticated) navigate("/profile");
+    else navigate("/auth");
   };
 
   const handleMenuClick = useCallback(
@@ -200,25 +221,38 @@ const Header = () => {
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      navigate(`/catalog?search=${encodeURIComponent(searchQuery)}`);
+      // Navigate to catalog with search param (Catalog component must read it)
+      navigate(`/catalog?search=${encodeURIComponent(searchQuery.trim())}`);
       setShowSearchResults(false);
+      // Optionally keep query in input? We'll clear after navigation to avoid stale state.
       setSearchQuery("");
+      setSearchResults([]);
     }
   };
 
   const handleResultClick = (result: SearchResult) => {
-    navigate(`/product/${result.id || result._id}`);
+    const productId = result._id || result.id;
+    if (productId) {
+      navigate(`/product/${productId}`);
+    } else {
+      console.warn("No product ID found", result);
+    }
     setShowSearchResults(false);
     setSearchQuery("");
+    setSearchResults([]);
   };
 
   const clearSearch = () => {
+    // Cancel any ongoing request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
     setSearchQuery("");
     setSearchResults([]);
     setShowSearchResults(false);
-    if (searchInputRef.current) {
-      searchInputRef.current.focus();
-    }
+    setSearchError(null);
+    searchInputRef.current?.focus();
   };
 
   useEffect(() => {
@@ -358,6 +392,16 @@ const Header = () => {
                       <div className="animate-spin inline-block w-5 h-5 border-2 border-gray-300 border-t-[#7a5a1e] rounded-full"></div>
                       <p className="mt-2 text-sm">Searching...</p>
                     </div>
+                  ) : searchError ? (
+                    <div className="p-4 text-center text-red-500">
+                      <p className="text-sm">{searchError}</p>
+                      <button
+                        onClick={() => performSearch(searchQuery)}
+                        className="mt-2 text-xs text-[#7a5a1e] underline"
+                      >
+                        Retry
+                      </button>
+                    </div>
                   ) : searchResults.length > 0 ? (
                     <div>
                       <div className="p-3 border-b border-gray-100">
@@ -365,30 +409,33 @@ const Header = () => {
                           Found {searchResults.length} result{searchResults.length > 1 ? "s" : ""}
                         </p>
                       </div>
-                      {searchResults.map((result) => (
-                        <button
-                          key={result.id || result._id}
-                          onClick={() => handleResultClick(result)}
-                          className="w-full p-3 hover:bg-gray-50 transition-colors text-left border-b border-gray-100 last:border-0 flex gap-3"
-                        >
-                          {result.images && result.images[0] && (
-                            <img
-                              src={result.images[0]}
-                              alt={result.name}
-                              className="w-12 h-12 object-cover rounded-lg"
-                            />
-                          )}
-                          <div className="flex-1">
-                            <p className="font-medium text-gray-800 text-sm">{result.name}</p>
-                            <p className="text-xs text-gray-500 mt-1">
-                              {result.categoryName || "Product"}
-                            </p>
-                            <p className="text-[#7a5a1e] font-semibold text-sm mt-1">
-                              {formatPrice(result.price)}
-                            </p>
-                          </div>
-                        </button>
-                      ))}
+                      {searchResults.map((result) => {
+                        const productId = result._id || result.id;
+                        return (
+                          <button
+                            key={productId}
+                            onClick={() => handleResultClick(result)}
+                            className="w-full p-3 hover:bg-gray-50 transition-colors text-left border-b border-gray-100 last:border-0 flex gap-3"
+                          >
+                            {result.images && result.images[0] && (
+                              <img
+                                src={result.images[0]}
+                                alt={result.name}
+                                className="w-12 h-12 object-cover rounded-lg"
+                              />
+                            )}
+                            <div className="flex-1">
+                              <p className="font-medium text-gray-800 text-sm">{result.name}</p>
+                              <p className="text-xs text-gray-500 mt-1">
+                                {result.categoryName || "Product"}
+                              </p>
+                              <p className="text-[#7a5a1e] font-semibold text-sm mt-1">
+                                {formatPrice(result.price)}
+                              </p>
+                            </div>
+                          </button>
+                        );
+                      })}
                       <div className="p-2 border-t border-gray-100">
                         <button
                           onClick={handleSearchSubmit}
@@ -432,7 +479,6 @@ const Header = () => {
               </Button>
             ))}
 
-            {/* External links as buttons */}
             <Button asChild className="bg-[#6f5424] text-white hover:bg-[#5c451e] transition-colors">
               <a
                 href="https://essentialstudio.jsgallor.com"
@@ -456,7 +502,6 @@ const Header = () => {
 
           {/* Icons */}
           <div className="flex items-center gap-3 shrink-0">
-            {/* Location */}
             <div className="relative">
               <Button
                 variant="icon"
@@ -477,7 +522,6 @@ const Header = () => {
               )}
             </div>
 
-            {/* User */}
             <Button
               variant="icon"
               size="icon"
@@ -487,7 +531,6 @@ const Header = () => {
               <User className="h-5 w-5" />
             </Button>
 
-            {/* Favorites */}
             <Link to="/favorites">
               <Button variant="icon" size="icon" className="hidden sm:flex relative text-white hover:text-yellow-200">
                 <Heart className="h-5 w-5" />
@@ -499,7 +542,6 @@ const Header = () => {
               </Button>
             </Link>
 
-            {/* Cart */}
             <Button
               variant="icon"
               size="icon"
@@ -518,7 +560,6 @@ const Header = () => {
               )}
             </Button>
 
-            {/* Mobile Menu */}
             <Button
               variant="icon"
               size="icon"
