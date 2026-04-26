@@ -11,6 +11,7 @@ import {
   Shield,
   RotateCcw,
   Loader2,
+  Share2,   // added share icon
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Header from "@/components/Header";
@@ -46,8 +47,8 @@ type Product = {
 
   price?: number;
   discount?: number;
-  gst?: number;               // ✅ GST percentage
-  isCustomized?: boolean;     // ✅ customization flag
+  gst?: number;               // GST percentage
+  isCustomized?: boolean;     // customization flag
 
   // for simple products
   color?: string | string[];
@@ -308,7 +309,7 @@ const ProductDetail = () => {
     if (selectedColor) attributes.color = selectedColor;
     if (selectedFabric) attributes.fabric = selectedFabric;
 
-    // ✅ Prepare cart item with GST and customization flag
+    // Prepare cart item with GST and customization flag
     const cartItem = {
       id: product._id,
       name: productName,
@@ -348,6 +349,31 @@ const ProductDetail = () => {
       size: selectedSize,
       fabric: selectedFabric,
     });
+  };
+
+  // Share product
+  const handleShare = async () => {
+    const url = window.location.href;
+    const title = productName;
+    const text = `Check out ${productName} on JSGALLOR! ${product?.description?.slice(0, 100) || ""}`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ title, text, url });
+      } catch (err) {
+        if (err instanceof Error && err.name !== "AbortError") {
+          toast({ title: "Sharing failed", description: err.message, variant: "destructive" });
+        }
+      }
+    } else {
+      // Fallback: copy to clipboard
+      try {
+        await navigator.clipboard.writeText(url);
+        toast({ title: "Link copied!", description: "Product link copied to clipboard." });
+      } catch (err) {
+        toast({ title: "Copy failed", description: "Please copy the URL manually.", variant: "destructive" });
+      }
+    }
   };
 
   if (loading) {
@@ -468,7 +494,7 @@ const ProductDetail = () => {
               )}
             </div>
 
-            {/* ✅ Description with preserved line breaks */}
+            {/* Description with preserved line breaks */}
             <div className="text-white/80 leading-relaxed whitespace-pre-wrap">
               {product.description || "—"}
             </div>
@@ -572,7 +598,7 @@ const ProductDetail = () => {
               </div>
             )}
 
-            {/* ✅ Customizable product button */}
+            {/* Customizable product button */}
             {product.isCustomized && (
               <div>
                 <Button
@@ -619,7 +645,7 @@ const ProductDetail = () => {
               </div>
             ) : null}
 
-            {/* ✅ GST & Stock status */}
+            {/* GST & Stock status */}
             <div className="text-sm space-y-1">
               <div>
                 <span className="text-white/70">GST:</span>{" "}
@@ -645,8 +671,8 @@ const ProductDetail = () => {
               </div>
             </div>
 
-            {/* Quantity & Add to Cart */}
-            <div className="flex items-center gap-4">
+            {/* Quantity, Add to Cart & Share Button */}
+            <div className="flex flex-wrap items-center gap-4">
               <div className="flex items-center gap-3 bg-white/5 rounded-lg px-4 py-2">
                 <button
                   onClick={() => setQuantity(Math.max(1, quantity - 1))}
@@ -678,6 +704,17 @@ const ProductDetail = () => {
                   ? "Select Options"
                   : "Add to Cart"}
               </Button>
+
+              {/* Share button */}
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-12 w-12 border-white/20 bg-black/20 text-white hover:bg-white/30"
+                onClick={handleShare}
+                aria-label="Share product"
+              >
+                <Share2 className="w-5 h-5" />
+              </Button>
             </div>
 
             {/* Features */}
@@ -702,8 +739,6 @@ const ProductDetail = () => {
         <section className="mt-20 border-t border-white/10 pt-12">
           <div className="max-w-4xl">
             <h2 className="text-2xl font-heading font-bold text-white mb-4">Product Description</h2>
-            {/* ✅ Full description with preserved line breaks */}
-            
 
             <div className="mt-6 grid sm:grid-cols-2 gap-4">
               {[

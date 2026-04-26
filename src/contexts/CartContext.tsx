@@ -9,6 +9,7 @@ import React, {
   ReactNode,
   useRef,
 } from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/auth-context";
 
@@ -88,6 +89,7 @@ const getItemMatchKey = (item: CartItem): string => {
 
 export const CartProvider = ({ children }: { children: ReactNode }) => {
   const { token, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
 
   const [items, setItems] = useState<CartItem[]>(
     () => safeParse<CartItem[]>(localStorage.getItem(CART_KEY)) || []
@@ -268,6 +270,12 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   // ---------- cart ops ----------
   const addItem = useCallback(
     (newItem: Omit<CartItem, "quantity">, qty: number = 1) => {
+      // 🔒 If not logged in: silently redirect to login, no toast
+      if (!isAuthenticated) {
+        navigate("/login");
+        return;
+      }
+
       if (!newItem.id) {
         toast({ title: "Error", description: "ProductId (_id) is missing", variant: "destructive" });
         return;
@@ -287,12 +295,13 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         return [...prev, { ...newItem, quantity: quantityToAdd }];
       });
 
+      // ✅ Only show success toast when logged in and item added
       toast({
         title: "Added to cart",
         description: `${newItem.name} (x${quantityToAdd}) added.`,
       });
     },
-    []
+    [isAuthenticated, navigate]
   );
 
   const removeItem = useCallback((itemId: string) => {

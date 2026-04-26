@@ -1,4 +1,5 @@
 import { forwardRef } from "react";
+import { Link } from "react-router-dom";
 
 const Footer = forwardRef<HTMLElement>((_, ref) => {
   return (
@@ -29,7 +30,6 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
               className="text-2xl font-heading font-bold text-white hover:text-[#d4af37] transition-colors"
             >
               +91 7075848516
-
             </a>
 
             <div className="flex items-center gap-2 mt-4">
@@ -39,37 +39,39 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
               </span>
             </div>
 
-            {/* 🔥 Added line */}
             <p className="text-sm text-[#fff3c4] mt-4 font-medium">
               We deal with premium manufacturers only.
             </p>
           </div>
 
-          {/* Links */}
+          {/* Quick Links (formerly "Information for buyers") */}
           <div>
             <h3 className="text-lg font-heading font-semibold mb-6 text-white">
-              Information for buyers
+              Quick Links
             </h3>
             <ul className="space-y-3">
               {[
-                "Delivery and assembly",
-                "Guarantee",
-                "About the project",
-                "Showroom in Hyderabad",
+                { name: "About Us", path: "/about" },
+                { name: "FAQs", path: "/faqs" },
+                { name: "Delivery & Assembly", path: "/delivery-policy" },
+                { name: "Guarantee / Warranty", path: "/warranty-refund" },
+                { name: "Privacy Policy", path: "/privacy-policy" },
+                { name: "Replacement Policy", path: "/replacement-policy" },
+                { name: "Showroom in Hyderabad", path: "/showroom" },
               ].map((link) => (
-                <li key={link}>
-                  <a
-                    href="#"
+                <li key={link.name}>
+                  <Link
+                    to={link.path}
                     className="text-white/80 hover:text-white transition-colors"
                   >
-                    {link}
-                  </a>
+                    {link.name}
+                  </Link>
                 </li>
               ))}
             </ul>
           </div>
 
-          {/* Locations ✅ */}
+          {/* Locations */}
           <div>
             <h3 className="text-lg font-heading font-semibold mb-6 text-white">
               Our Locations
@@ -81,7 +83,6 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
                 H No 1-98/3/5/23 to 27, Jubilee Enclave,  
                 Madhapur, RR Dist, Telangana – 500081
               </li>
-
               <li>
                 Uppal, Hyderabad, Telangana – 500039
               </li>
@@ -119,16 +120,22 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
               © JS GALLOR. 2026
             </p>
 
-            <div className="flex items-center gap-6">
-              <a href="#" className="text-sm text-white/70 hover:text-white">
+            <div className="flex flex-wrap items-center justify-center gap-4 md:gap-6">
+              <Link to="/privacy-policy" className="text-sm text-white/70 hover:text-white">
                 Privacy Policy
-              </a>
-              <a href="#" className="text-sm text-white/70 hover:text-white">
+              </Link>
+              <Link to="/delivery-policy" className="text-sm text-white/70 hover:text-white">
+                Delivery Policy
+              </Link>
+              <Link to="/warranty-refund" className="text-sm text-white/70 hover:text-white">
+                Warranty & Refund
+              </Link>
+              <Link to="/about" className="text-sm text-white/70 hover:text-white">
+                About
+              </Link>
+              <Link to="/support" className="text-sm text-white/70 hover:text-white">
                 Support
-              </a>
-              <a href="#" className="text-sm text-white/70 hover:text-white">
-                Only Replacement Policy
-              </a>
+              </Link>
             </div>
           </div>
 
