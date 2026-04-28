@@ -1,5 +1,6 @@
 import { forwardRef } from "react";
 import { Link } from "react-router-dom";
+import { Facebook, Instagram, Youtube } from "lucide-react";
 
 const Footer = forwardRef<HTMLElement>((_, ref) => {
   return (
@@ -42,9 +43,39 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
             <p className="text-sm text-[#fff3c4] mt-4 font-medium">
               We deal with premium manufacturers only.
             </p>
+
+            {/* ✅ Social Media Icons */}
+            <div className="flex items-center gap-3 mt-6">
+              <a
+                href="https://www.facebook.com/profile.php?id=61586448690693"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center hover:bg-[#1877F2] transition-all duration-300"
+              >
+                <Facebook className="h-4 w-4 text-white" />
+              </a>
+
+              <a
+                href="https://www.instagram.com/jsgallor/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center hover:bg-gradient-to-r hover:from-pink-500 hover:to-yellow-500 transition-all duration-300"
+              >
+                <Instagram className="h-4 w-4 text-white" />
+              </a>
+
+              <a
+                href="https://www.youtube.com/@JSGALLOR"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center hover:bg-red-600 transition-all duration-300"
+              >
+                <Youtube className="h-4 w-4 text-white" />
+              </a>
+            </div>
           </div>
 
-          {/* Quick Links (formerly "Information for buyers") */}
+          {/* Quick Links */}
           <div>
             <h3 className="text-lg font-heading font-semibold mb-6 text-white">
               Quick Links

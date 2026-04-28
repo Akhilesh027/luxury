@@ -19,20 +19,21 @@ const CartPanel = ({ onClose }: CartPanelProps) => {
     }).format(price);
   };
 
-  // Helper to handle quantity changes
   const handleQuantityChange = (
     id: string,
-    newQuantity: number,
+    currentQuantity: number,
+    type: "increase" | "decrease",
     color?: string
   ) => {
+    const newQuantity =
+      type === "increase" ? currentQuantity + 1 : currentQuantity - 1;
+
     if (newQuantity <= 0) {
-      // Remove item when quantity becomes 0 or negative
       removeItem(id, color);
-    } else {
-      // Optional: add max stock check here if available
-      // e.g., if (maxStock && newQuantity > maxStock) return;
-      updateQuantity(id, newQuantity, color);
+      return;
     }
+
+    updateQuantity(id, newQuantity, color);
   };
 
   return (
@@ -46,6 +47,7 @@ const CartPanel = ({ onClose }: CartPanelProps) => {
         <h3 className="text-gold font-heading font-semibold">
           Your Cart {totalItems > 0 ? `(${totalItems})` : ""}
         </h3>
+
         <button
           onClick={onClose}
           className="text-sm text-muted-foreground hover:text-foreground"
@@ -57,6 +59,7 @@ const CartPanel = ({ onClose }: CartPanelProps) => {
       {items.length === 0 ? (
         <div className="py-10 text-center">
           <p className="text-sm text-muted-foreground">Your cart is empty</p>
+
           <Button variant="gold-outline" className="mt-4" onClick={onClose}>
             Continue Shopping
           </Button>
@@ -66,7 +69,7 @@ const CartPanel = ({ onClose }: CartPanelProps) => {
           <div className="space-y-4 max-h-72 overflow-auto pr-1">
             {items.map((item) => (
               <div
-                key={`${item.id}::${item.color || ""}`}
+                key={`${item.id}-${item.color || "default"}`}
                 className="flex gap-3 pb-4 border-b border-border/50"
               >
                 <img
@@ -75,12 +78,12 @@ const CartPanel = ({ onClose }: CartPanelProps) => {
                   className="w-16 h-14 object-cover rounded-lg"
                 />
 
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <p className="font-semibold text-sm line-clamp-1">
                     {item.name}
                   </p>
 
-                  {!!item.color && (
+                  {item.color && (
                     <p className="text-[11px] text-muted-foreground mt-0.5">
                       Color: {item.color}
                     </p>
@@ -90,54 +93,7 @@ const CartPanel = ({ onClose }: CartPanelProps) => {
                     {formatPrice(item.price)} each
                   </p>
 
-                  {/* Qty controls */}
-                  <div className="mt-2 flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() =>
-                        handleQuantityChange(
-                          item.id,
-                          item.quantity - 1,
-                          item.color
-                        )
-                      }
-                      disabled={item.quantity <= 1} // optional: disable minus at 1
-                    >
-                      <Minus className="w-4 h-4" />
-                    </Button>
-
-                    <span className="text-sm w-6 text-center">
-                      {item.quantity}
-                    </span>
-
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() =>
-                        handleQuantityChange(
-                          item.id,
-                          item.quantity + 1,
-                          item.color
-                        )
-                      }
-                      // optional: add disabled if max stock reached
-                    >
-                      <Plus className="w-4 h-4" />
-                    </Button>
-
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="h-8 w-8 ml-auto"
-                      onClick={() => removeItem(item.id, item.color)}
-                      title="Remove"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
+                  
                 </div>
 
                 <p className="font-semibold text-sm whitespace-nowrap">
@@ -147,19 +103,18 @@ const CartPanel = ({ onClose }: CartPanelProps) => {
             ))}
           </div>
 
-          {/* Total */}
           <div className="flex items-center justify-between mt-4 text-sm">
             <span className="text-muted-foreground">Subtotal</span>
             <span className="font-semibold">{formatPrice(totalPrice)}</span>
           </div>
 
-          {/* Actions */}
           <div className="flex gap-3 mt-4">
             <Link to="/cart" className="flex-1" onClick={onClose}>
               <Button variant="outline" className="w-full">
                 View Cart
               </Button>
             </Link>
+
             <Link to="/checkout" className="flex-1" onClick={onClose}>
               <Button variant="gold" className="w-full">
                 Checkout
