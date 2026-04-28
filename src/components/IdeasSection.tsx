@@ -6,8 +6,7 @@ import InteractiveHotspot from "./InteractiveHotspot";
 
 const IdeasSection = () => {
   return (
-    <section className="py-16 lg:py-24 bg-gradient-to-r from-[#7a5a1e] via-[#d4af37] to-[#7a5a1e] relative">
-      {/* Soft overlay to improve text contrast */}
+    <section className="py-16 lg:py-24 bg-gradient-to-r from-[#7a5a1e] via-[#d4af37] to-[#7a5a1e] relative overflow-hidden">
       <div className="absolute inset-0 bg-white/5 backdrop-blur-[2px]" />
 
       <div className="container mx-auto px-4 relative z-10">
@@ -30,30 +29,32 @@ const IdeasSection = () => {
                 alt={idea.title}
                 className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
               />
-              
-              {/* Dark overlay for text contrast */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
 
-              {/* Hotspots */}
-              {idea.hotspots.map((hotspot, idx) => (
-                <motion.div
-                  key={idx}
-                  initial={{ scale: 0, opacity: 0 }}
-                  whileInView={{ scale: 1, opacity: 1 }}
-                  transition={{ delay: 0.3 + idx * 0.15 }}
-                >
-                  <InteractiveHotspot
-                    top={hotspot.top}
-                    left={hotspot.left}
-                    productId={hotspot.productId}
-                    productName={hotspot.productName}
-                    price={hotspot.price}
-                  />
-                </motion.div>
-              ))}
+              <div className="absolute inset-0 z-10 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
 
-              {/* Label – gold gradient icon + dark glass background */}
-              <div className="absolute bottom-4 left-4 right-4">
+              {/* Hotspots Fixed Layer */}
+              <div className="absolute inset-0 z-20 pointer-events-none">
+                {idea.hotspots?.map((hotspot, idx) => (
+                  <motion.div
+                    key={idx}
+                    className="pointer-events-auto"
+                    initial={{ scale: 0, opacity: 0 }}
+                    whileInView={{ scale: 1, opacity: 1 }}
+                    transition={{ delay: 0.3 + idx * 0.15 }}
+                    viewport={{ once: true }}
+                  >
+                    <InteractiveHotspot
+                      top={hotspot.top}
+                      left={hotspot.left}
+                      productId={hotspot.productId}
+                      productName={hotspot.productName}
+                      price={hotspot.price}
+                    />
+                  </motion.div>
+                ))}
+              </div>
+
+              <div className="absolute bottom-4 left-4 right-4 z-30">
                 <div className="bg-black/40 backdrop-blur-xl rounded-xl p-4 border border-white/20 shadow-lg">
                   <div className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#7a5a1e] to-[#d4af37] flex items-center justify-center shadow-md">

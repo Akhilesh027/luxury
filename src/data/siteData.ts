@@ -6,7 +6,13 @@ import img5 from '../images/img5.jpeg';
 import img6 from '../images/img6.jpeg';
 import img7 from '../images/img7.jpeg';
 import img8 from '../images/img8.jpeg';
-
+import slide1 from '../images/Bedroom Cel Slide -1.png';
+import slide2 from '../images/Dinin Cel Slide-2.png';
+import slide3 from '../images/Hall Cel Slide-3.png';
+import slide4 from '../images/Living Area Cel Slide-4.png';
+import idea from '../images/Bedroom Cel Liv.png';
+import idea1 from '../images/Dinin Cel Liv.png';
+import idea2 from '../images/Living room Cel Liv.png'
 export const menuData = {
   catalog: {
     items: ["Sofas & armchairs", "Beds & mattresses", "Cabinets & cupboards", "Tables & chairs"],
@@ -279,35 +285,36 @@ export const menuData = {
 
 export const heroSlides = [
   {
-    image: "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?q=80&w=1200",
+    image: slide1,
     title: "How to combine minimalism and comfort?",
     hotspots: [
-      { top: "28%", left: "62%", productId: 1, productName: "Luxury Bed Frame", price: 458990 },
-      { top: "62%", left: "32%", productId: 1, productName: "Bedside Cabinet", price: 89990 },
+    { top: "58%", left: "50%", productId: "69cfab894f2f57f5dfdb95b6", productName: "Modern Premium Upholstered Platform Bed", price: 84000 },
+    { top: "32%", left: "68%", productId: "69c26fc41334c8fdcaff455f", productName: "Wall Decor", price: 28000 },
     ],
   },
   {
-    image: "https://images.unsplash.com/photo-1524758631624-e2822e304c36?q=80&w=1200",
+    image: slide2,
     title: "Eclecticism in the interior",
     hotspots: [
-      { top: "32%", left: "48%", productId: 1, productName: "Designer Armchair", price: 245000 },
-      { top: "67%", left: "70%", productId: 1, productName: "Modern Side Table", price: 67990 },
+      { top: "32%", left: "48%", productId: "69c39c2a1334c8fdcaff4cd0", productName: "Golden Buddha", price: 30000 },
+      { top: "70%", left: "60%", productId: "69e213fcad677ad2759afe9b", productName: "Dining table", price: 169492 },
     ],
   },
   {
-    image: "https://images.unsplash.com/photo-1505691938895-1758d7feb511?q=80&w=1200",
+    image: slide3,
     title: "How to decorate your interior in Brutalism?",
     hotspots: [
-      { top: "37%", left: "52%", productId: 1, productName: "Industrial Pendant", price: 34990 },
-      { top: "72%", left: "28%", productId: 1, productName: "Concrete Console", price: 156990 },
+      { top: "80%", left: "52%", productId: 1, productName: "Industrial Pendant", price: 34990 },
+      { top: "72%", left: "28%", productId: "69df570aad677ad2759a8bf8", productName: "Recliner Sofa", price: 270000 },
     ],
   },
   {
-    image: "https://plus.unsplash.com/premium_photo-1681046751108-a516bea00570?q=80&w=1165",
+    image: slide4,
     title: "Modern luxury living spaces",
     hotspots: [
-      { top: "57%", left: "52%", productId: 1, productName: "Velvet Sofa", price: 789990 },
-      { top: "72%", left: "22%", productId: 1, productName: "Marble Coffee Table", price: 234990 },
+      { top: "57%", left: "52%", productId: "69e0914aad677ad2759aa1c4", productName: "Urban Grace", price: 130000 },
+      { top: "30%", left: "50%", productId: "69c272151334c8fdcaff457a", productName: "Golden Floral Wall Clock", price: 18000 },
+      { top: "80%", left: "45%", productId: 1, productName: "Marble Coffee Table", price: 234990 },
     ],
   },
 ];
@@ -560,28 +567,27 @@ export const newProducts = allProducts.slice(0, 6);
 
 export const ideasData = [
   {
-    image: "https://images.unsplash.com/photo-1582133776712-0b942f3ef601?q=80&w=1074",
+    image: idea,
     title: "Organizing a place for reading",
     hotspots: [
-      { top: "30%", left: "40%", productId: 5, productName: "Milano Armchair", price: 241500 },
-      { top: "60%", left: "70%", productId: 3, productName: "Bruno TV Stand", price: 149990 },
+      { top: "20%", left: "60%", productId: "69c39c2a1334c8fdcaff4cd0", productName: "Golden Buddha", price: 30000 },
+      { top: "60%", left: "70%", productId: "69e0b05dad677ad2759aa9f7", productName: "King Size Bed", price: 90000 },
     ],
   },
   {
-    image: "https://plus.unsplash.com/premium_photo-1690971631383-326a8b5d8ed7?q=80&w=880",
+    image: idea1,
     title: "A romantic armchair in a modern interior",
     hotspots: [
-      { top: "35%", left: "30%", productId: 5, productName: "Milano Armchair", price: 241500 },
-      { top: "65%", left: "55%", productId: 9, productName: "Marble Luxe Table", price: 169192 },
+      { top: "35%", left: "60%", productId: "69c272151334c8fdcaff457a", productName: "Golden Floral", price: 241500 },
+      { top: "65%", left: "55%", productId: "69df383ead677ad2759a895f", productName: "Premium Dining", price: 169192 },
     ],
   },
   {
-    image: "https://plus.unsplash.com/premium_photo-1725295198039-b92478b0ff30?q=80&w=674",
+    image: idea2,
     title: "A modern take on the Gustavian style",
     hotspots: [
-      { top: "25%", left: "50%", productId: 1, productName: "Haynes Sofa", price: 958990 },
-      { top: "50%", left: "30%", productId: 8, productName: "Enzo Chair", price: 41391 },
-      { top: "70%", left: "65%", productId: 9, productName: "Marble Luxe Table", price: 169192 },
+      { top: "25%", left: "50%", productId: "69c274f11334c8fdcaff458d", productName: "Golden Peacock", price: 10000 },
+      { top: "50%", left: "60%", productId: "69d61fcdee39e456d5b871e5", productName: "Lunara Teak", price: 154000 },
     ],
   },
 ];
