@@ -86,22 +86,7 @@ const Favorites = () => {
               </Link>
               <p className="text-white font-bold mt-1">{formatPrice(item.price)}</p>
 
-              <Button
-                variant="gold-outline"
-                className="w-full mt-3"
-                onClick={() =>
-                  addItem({
-                    id: item.id,
-                    name: item.name,
-                    price: item.price,
-                    image: item.image,
-                    color: "#8B7355",
-                  })
-                }
-              >
-                <ShoppingBag className="w-4 h-4 mr-2" />
-                Add to Cart
-              </Button>
+              
             </motion.div>
           ))}
         </div>

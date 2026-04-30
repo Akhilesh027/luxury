@@ -11,7 +11,7 @@ import {
   Shield,
   RotateCcw,
   Loader2,
-  Share2,   // added share icon
+  Share2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Header from "@/components/Header";
@@ -44,17 +44,18 @@ type Product = {
 
   image?: string;
   images?: string[];
+  galleryImages?: string[];
 
   price?: number;
   discount?: number;
-  gst?: number;               // GST percentage
-  isCustomized?: boolean;     // customization flag
+  gst?: number;
+  isCustomized?: boolean;
+  priceIncludesGst?: boolean;
 
-  // for simple products
   color?: string | string[];
   size?: string | string[];
-  quantity?: number;        // stock quantity for simple product
-  inStock?: boolean;        // fallback
+  quantity?: number;
+  inStock?: boolean;
 
   category?: string;
   type?: string;
@@ -65,21 +66,24 @@ type Product = {
     height?: number;
   };
 
-  // variant fields
   hasVariants?: boolean;
   variants?: Variant[];
   fabricTypes?: string[];
   extraPillows?: number;
 };
 
-// Helper to normalise to array
 function toArray(value?: string | string[]): string[] {
   if (Array.isArray(value)) {
     return value.filter(Boolean);
   }
+
   if (typeof value === "string" && value.trim()) {
-    return value.split(/[,|]/g).map(s => s.trim()).filter(Boolean);
+    return value
+      .split(/[,|]/g)
+      .map((s) => s.trim())
+      .filter(Boolean);
   }
+
   return [];
 }
 
@@ -109,7 +113,14 @@ const getColorName = (hex: string) => {
     "#4A4A4A": "Grey",
     "#4A6741": "Green",
     "#2C3E50": "Blue",
+    "#773F1A": "Brown",
+    "#36454F": "Charcoal",
+    "#CC5500": "Burnt Orange",
+    "#008080": "Teal",
+    "#D3B69C": "Beige",
+    "#808000": "Olive",
   };
+
   return colors[hex.toUpperCase()] || hex;
 };
 
@@ -130,64 +141,74 @@ const ProductDetail = () => {
 
   const productName = product?.title || product?.name || "Product";
 
-  // Determine if product has variants
-  const hasVariants = !!(product?.variants && product.variants.length > 0) || product?.hasVariants === true;
+  const hasVariants =
+    !!(product?.variants && product.variants.length > 0) || product?.hasVariants === true;
 
-  // Compute available options from variants (if any)
   const availableColors = useMemo(() => {
     if (hasVariants && product?.variants) {
       const colors = new Set<string>();
-      product.variants.forEach(v => {
+      product.variants.forEach((v) => {
         if (v.attributes.color) colors.add(v.attributes.color);
       });
       return Array.from(colors);
     }
+
     return toArray(product?.color);
   }, [product, hasVariants]);
 
   const availableSizes = useMemo(() => {
     if (hasVariants && product?.variants) {
       const sizes = new Set<string>();
-      product.variants.forEach(v => {
+      product.variants.forEach((v) => {
         if (v.attributes.size) sizes.add(v.attributes.size);
       });
       return Array.from(sizes);
     }
+
     return toArray(product?.size);
   }, [product, hasVariants]);
 
   const availableFabrics = useMemo(() => {
     if (hasVariants && product?.variants) {
       const fabrics = new Set<string>();
-      product.variants.forEach(v => {
+      product.variants.forEach((v) => {
         if (v.attributes.fabric) fabrics.add(v.attributes.fabric);
       });
       return Array.from(fabrics);
     }
+
     return product?.fabricTypes || [];
   }, [product, hasVariants]);
 
-  // Find the currently selected variant
   const selectedVariant = useMemo(() => {
     if (!hasVariants || !product?.variants) return null;
-    return product.variants.find(v => {
-      const colorMatch = !availableColors.length || v.attributes.color === selectedColor;
-      const sizeMatch = !availableSizes.length || v.attributes.size === selectedSize;
-      const fabricMatch = !availableFabrics.length || v.attributes.fabric === selectedFabric;
-      return colorMatch && sizeMatch && fabricMatch;
-    }) || null;
-  }, [product, hasVariants, selectedColor, selectedSize, selectedFabric, availableColors, availableSizes, availableFabrics]);
 
-  // Get original price (before discount) based on selected variant or product
+    return (
+      product.variants.find((v) => {
+        const colorMatch = !availableColors.length || v.attributes.color === selectedColor;
+        const sizeMatch = !availableSizes.length || v.attributes.size === selectedSize;
+        const fabricMatch = !availableFabrics.length || v.attributes.fabric === selectedFabric;
+        return colorMatch && sizeMatch && fabricMatch;
+      }) || null
+    );
+  }, [
+    product,
+    hasVariants,
+    selectedColor,
+    selectedSize,
+    selectedFabric,
+    availableColors,
+    availableSizes,
+    availableFabrics,
+  ]);
+
   const originalPrice = useMemo(() => {
     if (selectedVariant) return selectedVariant.price;
     return Number(product?.price ?? 0);
   }, [product, selectedVariant]);
 
-  // Discount percentage (product-level, apply to all variants)
   const discountPercent = product?.discount ?? 0;
 
-  // Final price after discount
   const finalPrice = useMemo(() => {
     const price = originalPrice;
     if (discountPercent > 0) {
@@ -196,36 +217,58 @@ const ProductDetail = () => {
     return price;
   }, [originalPrice, discountPercent]);
 
-  // Stock display logic
   const displayStock = useMemo(() => {
     if (hasVariants) {
       return selectedVariant ? selectedVariant.quantity : 0;
     }
-    if (typeof product?.quantity === 'number') return product.quantity;
+
+    if (typeof product?.quantity === "number") return product.quantity;
     return product?.inStock ? 999 : 0;
   }, [product, hasVariants, selectedVariant]);
 
-  const inStock = hasVariants ? (selectedVariant && selectedVariant.quantity > 0) : (displayStock > 0);
+  const inStock = hasVariants
+    ? !!(selectedVariant && selectedVariant.quantity > 0)
+    : displayStock > 0;
 
   const requireColor = availableColors.length > 1;
   const requireSize = availableSizes.length > 1;
   const requireFabric = availableFabrics.length > 1;
 
-  const allOptionsSelected = !hasVariants || (
-    (!requireColor || selectedColor) &&
-    (!requireSize || selectedSize) &&
-    (!requireFabric || selectedFabric)
-  );
+  const allOptionsSelected =
+    !hasVariants ||
+    ((!requireColor || selectedColor) &&
+      (!requireSize || selectedSize) &&
+      (!requireFabric || selectedFabric));
 
   const images = useMemo(() => {
-    let list: string[] = [];
+    const list: string[] = [];
+
     if (selectedVariant?.image) {
-      list = [selectedVariant.image];
-    } else {
-      list = product?.images?.length ? product.images : product?.image ? [product.image] : [];
+      list.push(selectedVariant.image);
     }
+
+    if (product?.image && !list.includes(product.image)) {
+      list.push(product.image);
+    }
+
+    if (product?.images?.length) {
+      product.images.forEach((img) => {
+        if (img && !list.includes(img)) list.push(img);
+      });
+    }
+
+    if (product?.galleryImages?.length) {
+      product.galleryImages.forEach((img) => {
+        if (img && !list.includes(img)) list.push(img);
+      });
+    }
+
     return list.length ? list : ["https://via.placeholder.com/900x900?text=No+Image"];
   }, [product, selectedVariant]);
+
+  useEffect(() => {
+    setSelectedImage(0);
+  }, [images.length, selectedVariant?._id]);
 
   const formatPrice = (p: number) =>
     new Intl.NumberFormat("en-IN", {
@@ -234,12 +277,11 @@ const ProductDetail = () => {
       maximumFractionDigits: 0,
     }).format(p);
 
-  // Auto-select first variant or first options
   useEffect(() => {
     if (!product) return;
 
     if (hasVariants && product.variants && product.variants.length > 0) {
-      let variantToSelect = product.variants.find(v => v.quantity > 0);
+      let variantToSelect = product.variants.find((v) => v.quantity > 0);
       if (!variantToSelect) variantToSelect = product.variants[0];
 
       if (variantToSelect) {
@@ -254,7 +296,6 @@ const ProductDetail = () => {
     }
   }, [product, hasVariants, availableColors, availableSizes, availableFabrics]);
 
-  // fetch product + related
   useEffect(() => {
     (async () => {
       try {
@@ -265,7 +306,11 @@ const ProductDetail = () => {
 
         if (p?.category) {
           const rel = await apiFetch(`/products?category=${encodeURIComponent(p.category)}&limit=8`);
-          const list: Product[] = Array.isArray(rel?.products) ? rel.products : [];
+          const list: Product[] = Array.isArray(rel?.products)
+            ? rel.products
+            : Array.isArray(rel?.data)
+            ? rel.data
+            : [];
           const filtered = list.filter((x) => String(x._id) !== String(p._id)).slice(0, 4);
           setRelated(filtered);
         } else {
@@ -289,14 +334,17 @@ const ProductDetail = () => {
       toast({ title: "Select a color", description: "Please choose a color to continue." });
       return false;
     }
+
     if (requireSize && !selectedSize) {
       toast({ title: "Select a size", description: "Please choose a size to continue." });
       return false;
     }
+
     if (requireFabric && !selectedFabric) {
       toast({ title: "Select a fabric", description: "Please choose a fabric to continue." });
       return false;
     }
+
     return true;
   };
 
@@ -309,14 +357,14 @@ const ProductDetail = () => {
     if (selectedColor) attributes.color = selectedColor;
     if (selectedFabric) attributes.fabric = selectedFabric;
 
-    // Prepare cart item with GST and customization flag
     const cartItem = {
       id: product._id,
       name: productName,
       price: finalPrice,
-      originalPrice: originalPrice,
-      discountPercent: discountPercent,
+      originalPrice,
+      discountPercent,
       gst: product.gst ?? 0,
+      priceIncludesGst: product.priceIncludesGst ?? true,
       isCustomized: product.isCustomized ?? false,
       image: images[0],
       variantId: selectedVariant?._id || null,
@@ -351,7 +399,6 @@ const ProductDetail = () => {
     });
   };
 
-  // Share product
   const handleShare = async () => {
     const url = window.location.href;
     const title = productName;
@@ -366,12 +413,15 @@ const ProductDetail = () => {
         }
       }
     } else {
-      // Fallback: copy to clipboard
       try {
         await navigator.clipboard.writeText(url);
         toast({ title: "Link copied!", description: "Product link copied to clipboard." });
-      } catch (err) {
-        toast({ title: "Copy failed", description: "Please copy the URL manually.", variant: "destructive" });
+      } catch {
+        toast({
+          title: "Copy failed",
+          description: "Please copy the URL manually.",
+          variant: "destructive",
+        });
       }
     }
   };
@@ -415,28 +465,26 @@ const ProductDetail = () => {
       <Header />
 
       <main className="container mx-auto px-4 py-8 relative z-10">
-        {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-sm text-white/70 mb-8">
-          <Link to="/" className="hover:text-[#d4af37]">Home</Link>
+          <Link to="/" className="hover:text-[#d4af37]">
+            Home
+          </Link>
           <span>/</span>
-          <Link to="/catalog" className="hover:text-[#d4af37]">Catalog</Link>
+          <Link to="/catalog" className="hover:text-[#d4af37]">
+            Catalog
+          </Link>
           <span>/</span>
           <span className="text-white">{productName}</span>
         </div>
 
         <div className="grid lg:grid-cols-2 gap-12">
-          {/* Image Gallery */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             className="space-y-4"
           >
             <div className="relative aspect-square rounded-2xl overflow-hidden bg-black/20">
-              <img
-                src={images[selectedImage]}
-                alt={productName}
-                className="w-full h-full object-cover"
-              />
+              <img src={images[selectedImage]} alt={productName} className="w-full h-full object-cover" />
 
               {discountPercent > 0 && (
                 <span className="absolute top-4 left-4 bg-[#d4af37] text-[#7a5a1e] text-sm font-bold px-3 py-1 rounded-full">
@@ -456,23 +504,21 @@ const ProductDetail = () => {
               </button>
             </div>
 
-            {/* Thumbnails */}
-            <div className="flex gap-3">
+            <div className="flex gap-3 overflow-x-auto pb-1">
               {images.map((img, idx) => (
                 <button
-                  key={idx}
+                  key={`${img}-${idx}`}
                   onClick={() => setSelectedImage(idx)}
-                  className={`w-20 h-20 rounded-lg overflow-hidden border-2 transition-colors ${
+                  className={`w-20 h-20 rounded-lg overflow-hidden border-2 transition-colors shrink-0 ${
                     selectedImage === idx ? "border-[#d4af37]" : "border-transparent"
                   }`}
                 >
-                  <img src={img} alt="" className="w-full h-full object-cover" />
+                  <img src={img} alt={`${productName} ${idx + 1}`} className="w-full h-full object-cover" />
                 </button>
               ))}
             </div>
           </motion.div>
 
-          {/* Product Info */}
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -490,16 +536,16 @@ const ProductDetail = () => {
             <div className="flex items-baseline gap-4">
               <span className="text-3xl font-bold">{formatPrice(finalPrice)}</span>
               {discountPercent > 0 && (
-                <span className="text-xl text-white/50 line-through">{formatPrice(originalPrice)}</span>
+                <span className="text-xl text-white/50 line-through">
+                  {formatPrice(originalPrice)}
+                </span>
               )}
             </div>
 
-            {/* Description with preserved line breaks */}
             <div className="text-white/80 leading-relaxed whitespace-pre-wrap">
               {product.description || "—"}
             </div>
 
-            {/* Color Selection */}
             {availableColors.length > 0 && (
               <div>
                 <div className="flex items-center justify-between">
@@ -516,7 +562,7 @@ const ProductDetail = () => {
                     const isHex = isHexColor(color);
                     return (
                       <button
-                        key={idx}
+                        key={`${color}-${idx}`}
                         onClick={() => setSelectedColor(color)}
                         className={`relative w-10 h-10 rounded-full border-2 transition-all flex items-center justify-center ${
                           selected ? "border-[#d4af37] scale-110" : "border-transparent hover:border-white/30"
@@ -524,9 +570,7 @@ const ProductDetail = () => {
                         style={{ backgroundColor: isHex ? color : undefined }}
                       >
                         {!isHex && <span className="text-white text-xs">{color}</span>}
-                        {selected && (
-                          <Check className="w-5 h-5 text-white drop-shadow-md" />
-                        )}
+                        {selected && <Check className="w-5 h-5 text-white drop-shadow-md" />}
                       </button>
                     );
                   })}
@@ -534,7 +578,6 @@ const ProductDetail = () => {
               </div>
             )}
 
-            {/* Size Selection */}
             {availableSizes.length > 0 && (
               <div>
                 <div className="flex items-center justify-between">
@@ -566,7 +609,6 @@ const ProductDetail = () => {
               </div>
             )}
 
-            {/* Fabric Selection */}
             {availableFabrics.length > 0 && (
               <div>
                 <div className="flex items-center justify-between">
@@ -598,15 +640,16 @@ const ProductDetail = () => {
               </div>
             )}
 
-            {/* Customizable product button */}
             {product.isCustomized && (
               <div>
                 <Button
                   className="w-full bg-white/20 text-white border border-white/40 hover:bg-white/30"
                   size="xl"
                   onClick={() => {
-                    const message = `Hi, I'm interested in customizing this product:%0A%0A*Name:* ${encodeURIComponent(product.name)}%0A*ID:* ${product._id}%0A%0ACan you please share customization options?`;
-                    window.open(`https://wa.me/917075848516?text=${message}`, '_blank');
+                    const message = `Hi, I'm interested in customizing this product:%0A%0A*Name:* ${encodeURIComponent(
+                      productName
+                    )}%0A*ID:* ${product._id}%0A%0ACan you please share customization options?`;
+                    window.open(`https://wa.me/917075848516?text=${message}`, "_blank");
                   }}
                 >
                   ✨ Customize This Product
@@ -617,7 +660,6 @@ const ProductDetail = () => {
               </div>
             )}
 
-            {/* Dimensions */}
             {product.dimensions && (
               <div className="bg-black/40 backdrop-blur-sm rounded-xl border border-white/10 p-4">
                 <p className="font-medium text-white mb-3">Dimensions</p>
@@ -638,14 +680,12 @@ const ProductDetail = () => {
               </div>
             )}
 
-            {/* Extra pillows */}
             {product.extraPillows ? (
               <div className="text-sm text-white/70">
                 <span className="font-medium text-white">Extra pillows included:</span> {product.extraPillows}
               </div>
             ) : null}
 
-            {/* GST & Stock status */}
             <div className="text-sm space-y-1">
               <div>
                 <span className="text-white/70">GST:</span>{" "}
@@ -671,7 +711,6 @@ const ProductDetail = () => {
               </div>
             </div>
 
-            {/* Quantity, Add to Cart & Share Button */}
             <div className="flex flex-wrap items-center gap-4">
               <div className="flex items-center gap-3 bg-white/5 rounded-lg px-4 py-2">
                 <button
@@ -685,7 +724,10 @@ const ProductDetail = () => {
                 <button
                   onClick={() => setQuantity(quantity + 1)}
                   className="text-white/70 hover:text-white"
-                  disabled={!inStock || (hasVariants && selectedVariant && quantity >= selectedVariant.quantity)}
+                  disabled={
+                    !inStock ||
+                    (hasVariants && !!selectedVariant && quantity >= selectedVariant.quantity)
+                  }
                 >
                   <Plus className="w-5 h-5" />
                 </button>
@@ -705,7 +747,6 @@ const ProductDetail = () => {
                   : "Add to Cart"}
               </Button>
 
-              {/* Share button */}
               <Button
                 variant="outline"
                 size="icon"
@@ -717,7 +758,6 @@ const ProductDetail = () => {
               </Button>
             </div>
 
-            {/* Features */}
             <div className="grid grid-cols-3 gap-4 pt-6 border-t border-white/10">
               <div className="text-center">
                 <Truck className="w-6 h-6 mx-auto text-[#d4af37] mb-2" />
@@ -735,7 +775,6 @@ const ProductDetail = () => {
           </motion.div>
         </div>
 
-        {/* Product Description Section */}
         <section className="mt-20 border-t border-white/10 pt-12">
           <div className="max-w-4xl">
             <h2 className="text-2xl font-heading font-bold text-white mb-4">Product Description</h2>
@@ -756,14 +795,17 @@ const ProductDetail = () => {
           </div>
         </section>
 
-        {/* Related Products */}
         {related.length > 0 && (
           <section className="mt-20">
             <h2 className="text-2xl font-heading font-bold text-white mb-8">Related Products</h2>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
               {related.map((item) => {
                 const name = item.title || item.name || "Product";
-                const img = item.image || item.images?.[0] || "https://via.placeholder.com/600";
+                const img =
+                  item.image ||
+                  item.images?.[0] ||
+                  item.galleryImages?.[0] ||
+                  "https://via.placeholder.com/600";
                 const original = Number(item.price ?? 0);
                 const discount = item.discount ?? 0;
                 const final = discount > 0 ? original * (1 - discount / 100) : original;
