@@ -335,9 +335,8 @@ const totalGst = detailedPricing.totalGst;
 
   // Final total already includes totalPrice (discounted subtotal) - discount + shipping + totalGst
 const finalTotal = useMemo(() => {
-  return Math.max(0, totalPrice - discount) + shipping + totalGst;
-}, [totalPrice, discount, shipping, totalGst]);
-
+  return Math.max(0, totalPrice - discount) + shipping;
+}, [totalPrice, discount, shipping]);
   useEffect(() => {
     const token = getToken();
     if (!token) {
