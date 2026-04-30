@@ -31,26 +31,34 @@ type Product = {
 };
 
 type ApiCategory = {
-  id: string;
+  _id?: string;
+  id?: string;
   name: string;
   slug: string;
-  parentId: string | null;
+  parentId?: string | null;
+  parent?: string | null;
+  parentCategory?: string | null;
   status?: string;
   showOnWebsite?: boolean;
+  segment?: string;
+  order?: number;
 };
 
 const getToken = () => localStorage.getItem(TOKEN_KEY);
-const norm = (v?: string) => (v || "").toLowerCase().trim();
+const norm = (v?: string | null) => String(v || "").toLowerCase().trim();
+
+const getCatId = (c?: ApiCategory | null) => String(c?._id || c?.id || "");
+const getParentId = (c?: ApiCategory | null) =>
+  String(c?.parentId || c?.parent || c?.parentCategory || "");
 
 const pickTitle = (p: Product) => p.title || p.name || "Product";
 const pickImage = (p: Product) => p.image || (Array.isArray(p.images) ? p.images[0] : "") || "";
 const pickNewPrice = (p: Product) =>
   typeof p.newPrice === "number" ? p.newPrice : typeof p.price === "number" ? p.price : 0;
 
-// Helper to compute original price from discounted price and discount percent
 const computeOriginalPrice = (price: number, discountPercent: number): number => {
   if (discountPercent <= 0) return price;
-  return Math.round(price * 100 / (100 - discountPercent));
+  return Math.round((price * 100) / (100 - discountPercent));
 };
 
 const Catalog = () => {
@@ -69,77 +77,149 @@ const Catalog = () => {
   const activePriceMin = searchParams.get("priceMin");
   const activePriceMax = searchParams.get("priceMax");
   const searchQuery = searchParams.get("search") || "";
-  const filterCategorySlug = searchParams.get("cat") || categorySlug || null;
-  const filterSubSlug = searchParams.get("sub") || subCategorySlug || null;
+
+  // IMPORTANT:
+  // Filters are controlled only by query params.
+  // Header route params are converted to query params once in the effect below.
+  const filterCategorySlug = searchParams.get("cat") || null;
+  const filterSubSlug = searchParams.get("sub") || null;
 
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [errMsg, setErrMsg] = useState<string | null>(null);
 
-  // Categories state for filter UI
   const [categories, setCategories] = useState<ApiCategory[]>([]);
   const [catLoading, setCatLoading] = useState(false);
 
-  // Fetch categories (luxury + all)
+  useEffect(() => {
+    if (!categorySlug && !subCategorySlug) return;
+
+    const next = new URLSearchParams(searchParams);
+
+    if (categorySlug) next.set("cat", categorySlug);
+    else next.delete("cat");
+
+    if (subCategorySlug) next.set("sub", subCategorySlug);
+    else next.delete("sub");
+
+    setSearchParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categorySlug, subCategorySlug]);
+
   useEffect(() => {
     const fetchCategories = async () => {
       try {
         setCatLoading(true);
+
         const urls = [
           `${API_ADMIN}/categories?segment=all&status=active&level=all&sort=order&limit=200`,
           `${API_ADMIN}/categories?segment=luxury&status=active&level=all&sort=order&limit=200`,
         ];
+
         const [r1, r2] = await Promise.all(urls.map((u) => fetch(u)));
         if (!r1.ok || !r2.ok) throw new Error("Failed to fetch categories");
+
         const j1 = await r1.json().catch(() => ({}));
         const j2 = await r2.json().catch(() => ({}));
-        const a1: ApiCategory[] = Array.isArray(j1) ? j1 : j1?.data?.items || [];
-        const a2: ApiCategory[] = Array.isArray(j2) ? j2 : j2?.data?.items || [];
+
+        const a1: ApiCategory[] = Array.isArray(j1) ? j1 : j1?.data?.items || j1?.data || [];
+        const a2: ApiCategory[] = Array.isArray(j2) ? j2 : j2?.data?.items || j2?.data || [];
+
         const map = new Map<string, ApiCategory>();
+
         [...a1, ...a2].forEach((c) => {
           if (!c?.slug) return;
-          const prev = map.get(c.slug);
-          if (!prev) map.set(c.slug, c);
-          else if (norm(prev.status) === "all" && norm(c.status) === "luxury") map.set(c.slug, c);
+
+          const id = getCatId(c);
+          const key = id || c.slug;
+          const normalized: ApiCategory = {
+            ...c,
+            id: c.id || c._id,
+            _id: c._id || c.id,
+          };
+
+          const prev = map.get(key);
+          if (!prev) {
+            map.set(key, normalized);
+            return;
+          }
+
+          const prevSegment = norm(prev.segment);
+          const nextSegment = norm(normalized.segment);
+          if (prevSegment === "all" && nextSegment === "luxury") {
+            map.set(key, normalized);
+          }
         });
+
         let merged = Array.from(map.values());
-        merged = merged.filter((c) => c.status === "active" && c.showOnWebsite !== false);
-        merged.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+
+        merged = merged
+          .filter((c) => {
+            if (norm(c.status) && norm(c.status) !== "active") return false;
+            if (typeof c.showOnWebsite === "boolean" && !c.showOnWebsite) return false;
+
+            const seg = norm(c.segment);
+            if (seg && seg !== "all" && seg !== "luxury") return false;
+
+            return true;
+          })
+          .sort(
+            (a, b) =>
+              Number(a.order || 0) - Number(b.order || 0) ||
+              (a.name || "").localeCompare(b.name || "")
+          );
+
         setCategories(merged);
       } catch (err) {
         console.error("Category fetch error:", err);
+        setCategories([]);
       } finally {
         setCatLoading(false);
       }
     };
+
     fetchCategories();
   }, []);
 
-  // Group categories into parent and children
-  const parents = useMemo(() => categories.filter((c) => !c.parentId), [categories]);
+  const parents = useMemo(() => {
+    return categories.filter((c) => !getParentId(c));
+  }, [categories]);
+
   const childrenMap = useMemo(() => {
     const map = new Map<string, ApiCategory[]>();
+
     parents.forEach((p) => {
-      map.set(p.slug, categories.filter((c) => c.parentId === p.id));
+      const parentId = getCatId(p);
+      const children = categories
+        .filter((c) => getParentId(c) === parentId)
+        .sort(
+          (a, b) =>
+            Number(a.order || 0) - Number(b.order || 0) ||
+            (a.name || "").localeCompare(b.name || "")
+        );
+
+      map.set(p.slug, children);
     });
+
     return map;
   }, [categories, parents]);
 
   const selectedParent = parents.find((p) => p.slug === filterCategorySlug) || null;
-  const selectedChild = childrenMap.get(filterCategorySlug || "")?.find((c) => c.slug === filterSubSlug) || null;
+  const selectedChild =
+    childrenMap.get(filterCategorySlug || "")?.find((c) => c.slug === filterSubSlug) || null;
 
-  // Build API URL with category/subcategory filters
   const buildApiUrl = () => {
     const url = new URL(`${API_BASE}/products`);
     url.searchParams.set("status", "approved");
     url.searchParams.set("tier", "luxury");
     url.searchParams.set("limit", "200");
+
     if (filterCategorySlug) url.searchParams.set("category", filterCategorySlug);
     if (filterSubSlug) url.searchParams.set("subcategory", filterSubSlug);
+
     return url.toString();
   };
 
-  // Fetch products when filters change
   useEffect(() => {
     let mounted = true;
     const abortController = new AbortController();
@@ -148,8 +228,10 @@ const Catalog = () => {
       try {
         setLoading(true);
         setErrMsg(null);
+
         const token = getToken();
         const url = buildApiUrl();
+
         const res = await fetch(url, {
           headers: {
             "Content-Type": "application/json",
@@ -157,12 +239,16 @@ const Catalog = () => {
           },
           signal: abortController.signal,
         });
+
         const json = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(json?.message || `Failed to load products (${res.status})`);
+
         let list: Product[] = [];
         if (Array.isArray(json?.products)) list = json.products;
         else if (Array.isArray(json?.data)) list = json.data;
+        else if (Array.isArray(json?.data?.items)) list = json.data.items;
         else if (Array.isArray(json)) list = json;
+
         if (mounted) setProducts(list);
       } catch (err: any) {
         if (err.name === "AbortError") return;
@@ -174,14 +260,16 @@ const Catalog = () => {
         if (mounted) setLoading(false);
       }
     };
+
     fetchProducts();
+
     return () => {
       mounted = false;
       abortController.abort();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterCategorySlug, filterSubSlug]);
 
-  // Client-side filtering (price, search) and sorting
   const filteredProducts = useMemo(() => {
     let result = [...products];
 
@@ -217,6 +305,7 @@ const Catalog = () => {
       default:
         break;
     }
+
     return result;
   }, [products, activePriceMin, activePriceMax, searchQuery, sortBy]);
 
@@ -224,22 +313,25 @@ const Catalog = () => {
     const newParams = new URLSearchParams(searchParams);
     if (value) newParams.set(key, value);
     else newParams.delete(key);
-    setSearchParams(newParams);
+    setSearchParams(newParams, { replace: true });
   };
 
   const clearFilters = () => {
     const newParams = new URLSearchParams();
     if (searchQuery) newParams.set("search", searchQuery);
-    setSearchParams(newParams);
+    setSearchParams(newParams, { replace: true });
   };
 
   const handleCategoryChange = (parentSlug: string | null, childSlug: string | null) => {
     const newParams = new URLSearchParams(searchParams);
+
     if (parentSlug) newParams.set("cat", parentSlug);
     else newParams.delete("cat");
+
     if (childSlug) newParams.set("sub", childSlug);
     else newParams.delete("sub");
-    setSearchParams(newParams);
+
+    setSearchParams(newParams, { replace: true });
   };
 
   const formatPrice = (price: number) =>
@@ -251,7 +343,6 @@ const Catalog = () => {
 
   const hasActiveFilters = !!filterCategorySlug || !!filterSubSlug || !!activePriceMin;
 
-  // Helper to render product card with discount and original price
   const renderProductCard = (product: Product, index: number) => {
     const id = product._id;
     const title = pickTitle(product);
@@ -353,7 +444,6 @@ const Catalog = () => {
       <div className="absolute inset-0 bg-white/5 backdrop-blur-[2px]" />
       <Header />
       <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 relative z-10">
-        {/* Header with title and controls */}
         <div className="mb-6 sm:mb-8 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="min-w-0">
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-heading font-bold text-white drop-shadow-lg break-words">
@@ -394,7 +484,6 @@ const Catalog = () => {
         </div>
 
         <div className="flex gap-6 lg:gap-8">
-          {/* Filters Sidebar */}
           <aside
             className={`${
               showFilters
@@ -404,19 +493,27 @@ const Catalog = () => {
           >
             <div className="flex items-center justify-between mb-6 lg:hidden">
               <h2 className="text-xl font-heading font-bold text-white">Filters</h2>
-              <Button variant="icon" size="icon" onClick={() => setShowFilters(false)} className="text-white">
+              <Button
+                variant="icon"
+                size="icon"
+                onClick={() => setShowFilters(false)}
+                className="text-white"
+              >
                 <X className="w-5 h-5" />
               </Button>
             </div>
 
             <div className="lg:sticky lg:top-24">
               {hasActiveFilters && (
-                <Button variant="ghost" onClick={clearFilters} className="mb-6 text-white hover:text-[#d4af37]">
+                <Button
+                  variant="ghost"
+                  onClick={clearFilters}
+                  className="mb-6 text-white hover:text-[#d4af37]"
+                >
                   Clear all filters
                 </Button>
               )}
 
-              {/* Category Filter */}
               <FilterSection title="Category">
                 {!catLoading && (
                   <>
@@ -426,7 +523,7 @@ const Catalog = () => {
                       onClick={() => handleCategoryChange(null, null)}
                     />
                     {parents.map((cat) => (
-                      <div key={cat.id}>
+                      <div key={getCatId(cat) || cat.slug}>
                         <FilterItem
                           label={cat.name}
                           active={filterCategorySlug === cat.slug && !selectedChild}
@@ -441,7 +538,7 @@ const Catalog = () => {
                             />
                             {childrenMap.get(cat.slug)!.map((child) => (
                               <FilterItem
-                                key={child.id}
+                                key={getCatId(child) || child.slug}
                                 label={child.name}
                                 active={selectedChild?.slug === child.slug}
                                 onClick={() => handleCategoryChange(cat.slug, child.slug)}
@@ -455,7 +552,6 @@ const Catalog = () => {
                 )}
               </FilterSection>
 
-              {/* Price Range Filter */}
               <FilterSection title="Price Range">
                 {filterOptions.priceRanges.map((range, idx) => (
                   <FilterItem
@@ -467,8 +563,10 @@ const Catalog = () => {
                         setFilter("priceMin", null);
                         setFilter("priceMax", null);
                       } else {
-                        setFilter("priceMin", String(range.min));
-                        setFilter("priceMax", String(range.max));
+                        const newParams = new URLSearchParams(searchParams);
+                        newParams.set("priceMin", String(range.min));
+                        newParams.set("priceMax", String(range.max));
+                        setSearchParams(newParams, { replace: true });
                       }
                     }}
                   />
@@ -484,7 +582,6 @@ const Catalog = () => {
             </div>
           </aside>
 
-          {/* Product Grid / List */}
           <div className="flex-1 min-w-0">
             <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex flex-wrap items-center gap-2">
@@ -532,9 +629,7 @@ const Catalog = () => {
             ) : (
               <div
                 className={`grid gap-4 sm:gap-6 ${
-                  viewMode === "grid"
-                    ? "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3"
-                    : "grid-cols-1"
+                  viewMode === "grid" ? "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3" : "grid-cols-1"
                 }`}
               >
                 {filteredProducts.map((product, index) => renderProductCard(product, index))}
@@ -557,14 +652,26 @@ const FilterSection = ({ title, children }: { title: string; children: React.Rea
         className="flex items-center justify-between w-full py-2 font-medium text-left text-white"
       >
         <span>{title}</span>
-        <ChevronDown className={`w-4 h-4 transition-transform text-white/70 ${isOpen ? "rotate-180" : ""}`} />
+        <ChevronDown
+          className={`w-4 h-4 transition-transform text-white/70 ${isOpen ? "rotate-180" : ""}`}
+        />
       </button>
       {isOpen && <div className="mt-2 space-y-2">{children}</div>}
     </div>
   );
 };
 
-const FilterItem = ({ label, active, onClick, icon }: { label: string; active: boolean; onClick: () => void; icon?: React.ReactNode }) => (
+const FilterItem = ({
+  label,
+  active,
+  onClick,
+  icon,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+  icon?: React.ReactNode;
+}) => (
   <button
     onClick={onClick}
     className={`flex items-center gap-2 w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${

@@ -146,7 +146,24 @@ declare global {
     Razorpay?: any;
   }
 }
+function getDiscountedPrice(
+  originalPrice: number,
+  discountPercent: number,
+  priceIncludesGst: boolean = true,
+  gstPercent: number = 0
+) {
+  const discountFactor = 1 - discountPercent / 100;
 
+  if (priceIncludesGst) {
+    const discountedInclusive = originalPrice * discountFactor;
+    const discountedExclusive = discountedInclusive / (1 + gstPercent / 100);
+    return { discountedInclusive, discountedExclusive };
+  }
+
+  const discountedExclusive = originalPrice * discountFactor;
+  const discountedInclusive = discountedExclusive * (1 + gstPercent / 100);
+  return { discountedInclusive, discountedExclusive };
+}
 const loadRazorpay = () =>
   new Promise<boolean>((resolve) => {
     if (window.Razorpay) return resolve(true);
@@ -176,8 +193,7 @@ const getColorName = (hex: string) => {
 };
 
 const Checkout = () => {
-  const { items, totalPrice, clearCart, totalGst } = useCart(); // ✅ added totalGst
-  const navigate = useNavigate();
+const { items, clearCart } = useCart();  const navigate = useNavigate();
   const location = useLocation();
 
   const [step, setStep] = useState<1 | 2>(1);
@@ -238,7 +254,53 @@ const Checkout = () => {
   const shipping = useMemo(() => {
     return Math.max(0, Number(shippingBase || 0) - Number(shippingDiscount || 0));
   }, [shippingBase, shippingDiscount]);
+const detailedPricing = useMemo(() => {
+  let originalTotalInclusive = 0;
+  let discountedTotalInclusive = 0;
+  let totalGst = 0;
+  let totalDiscountInclusive = 0;
+  let firstDiscountPercent = 0;
 
+  for (const item of items as any[]) {
+    const origPrice = item.originalPrice || item.price || 0;
+    const discPercent = item.discountPercent || 0;
+    const gstPercent = item.gst || 0;
+    const priceIncludesGst = item.priceIncludesGst ?? true;
+    const qty = item.quantity || 1;
+
+    const { discountedInclusive, discountedExclusive } = getDiscountedPrice(
+      origPrice,
+      discPercent,
+      priceIncludesGst,
+      gstPercent
+    );
+
+    const originalInclusive = priceIncludesGst
+      ? origPrice
+      : origPrice * (1 + gstPercent / 100);
+
+    originalTotalInclusive += originalInclusive * qty;
+    discountedTotalInclusive += discountedInclusive * qty;
+    totalGst += discountedExclusive * qty * (gstPercent / 100);
+    totalDiscountInclusive += originalInclusive * qty - discountedInclusive * qty;
+
+    if (discPercent > 0 && firstDiscountPercent === 0) {
+      firstDiscountPercent = discPercent;
+    }
+  }
+
+  return {
+    originalTotalInclusive,
+    discountedTotalInclusive,
+    totalGst,
+    totalDiscountInclusive,
+    firstDiscountPercent,
+    hasDiscount: totalDiscountInclusive > 0,
+  };
+}, [items]);
+
+const totalPrice = detailedPricing.discountedTotalInclusive;
+const totalGst = detailedPricing.totalGst;
   // ✅ Compute product discount totals from items
   const productDiscountDetails = useMemo(() => {
     let originalTotal = 0;
@@ -272,9 +334,9 @@ const Checkout = () => {
   }, [items]);
 
   // Final total already includes totalPrice (discounted subtotal) - discount + shipping + totalGst
-  const finalTotal = useMemo(() => {
-    return Math.max(0, totalPrice - discount) + shipping + totalGst;
-  }, [totalPrice, discount, shipping, totalGst]);
+const finalTotal = useMemo(() => {
+  return Math.max(0, totalPrice - discount) + shipping + totalGst;
+}, [totalPrice, discount, shipping, totalGst]);
 
   useEffect(() => {
     const token = getToken();
