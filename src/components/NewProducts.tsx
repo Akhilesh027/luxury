@@ -36,30 +36,21 @@ const pickTitle = (p: Product) => p.title || p.name || "Product";
 const pickImage = (p: Product) =>
   p.image || (Array.isArray(p.images) ? p.images[0] : "") || "";
 const pickType = (p: Product) => p.type || p.category || "Luxury";
-
-// ----- DISCOUNT PRICE HELPERS (same as ProductCard) -----
 const pickOldPrice = (p: Product): number | undefined => {
-  if (typeof p.oldPrice === "number") return p.oldPrice;
-  if (typeof p.price === "number" && typeof p.discount === "number" && p.discount > 0) {
-    return Math.round(p.price / (1 - p.discount / 100));
-  }
+  if (typeof p.price === "number") return p.price; // original price
   return undefined;
 };
 
 const pickNewPrice = (p: Product): number => {
-  if (typeof p.newPrice === "number") return p.newPrice;
-  if (typeof p.price === "number") return p.price;
+  if (typeof p.price === "number") {
+    const discount = p.discount || 0;
+    return Math.round(p.price * (1 - discount / 100)); // ✅ APPLY DISCOUNT
+  }
   return 0;
 };
 
 const pickDiscount = (p: Product): number => {
-  if (typeof p.discount === "number") return p.discount;
-  const oldP = pickOldPrice(p);
-  const newP = pickNewPrice(p);
-  if (oldP && newP && oldP > newP) {
-    return Math.round(((oldP - newP) / oldP) * 100);
-  }
-  return 0;
+  return typeof p.discount === "number" ? p.discount : 0;
 };
 
 const formatPrice = (price: number) => {

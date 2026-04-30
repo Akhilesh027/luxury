@@ -185,8 +185,8 @@ const Cart = () => {
   // FREE shipping (luxury tier)
   const shippingBase = 0;
   const shipping = Math.max(0, shippingBase - shippingDiscount);
-  const finalTotal = Math.max(0, effectiveSubtotal - discount) + shipping + effectiveGst;
-
+const taxableValue = Math.max(0, effectiveSubtotal - effectiveGst);
+const finalTotal = Math.max(0, effectiveSubtotal - discount) + shipping;
   // Helper for item identifier (same as context)
   const getItemIdentifier = (item: CartItem): string => {
     if (item.cartItemId) return item.cartItemId;
@@ -684,16 +684,22 @@ const Cart = () => {
                 )}
 
                 {/* 3. Subtotal after product discount */}
-                <div className="flex justify-between font-medium">
-                  <span className="text-white/70">Subtotal after discount</span>
-                  <span className="text-white">{formatPrice(effectiveSubtotal)}</span>
-                </div>
+<div className="flex justify-between font-medium">
+  <span className="text-white/70">Subtotal</span>
+  <span className="text-white">{formatPrice(effectiveSubtotal)}</span>
+</div>
 
-                {/* 4. GST (calculated on discounted price) */}
-                <div className="flex justify-between">
-                  <span className="text-white/70">GST</span>
-                  <span className="text-white">{formatPrice(effectiveGst)}</span>
-                </div>
+{/* Taxable Value */}
+<div className="flex justify-between">
+  <span className="text-white/70">Taxable Value</span>
+  <span className="text-white">{formatPrice(taxableValue)}</span>
+</div>
+
+{/* GST Included */}
+<div className="flex justify-between">
+  <span className="text-white/70">GST</span>
+  <span className="text-white">{formatPrice(effectiveGst)}</span>
+</div>
 
                 {/* 5. Coupon Discount (if any) */}
                 {discount > 0 && (
