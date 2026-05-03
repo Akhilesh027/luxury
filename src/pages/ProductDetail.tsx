@@ -73,17 +73,10 @@ type Product = {
 };
 
 function toArray(value?: string | string[]): string[] {
-  if (Array.isArray(value)) {
-    return value.filter(Boolean);
-  }
-
+  if (Array.isArray(value)) return value.filter(Boolean);
   if (typeof value === "string" && value.trim()) {
-    return value
-      .split(/[,|]/g)
-      .map((s) => s.trim())
-      .filter(Boolean);
+    return value.split(/[,|]/g).map((s) => s.trim()).filter(Boolean);
   }
-
   return [];
 }
 
@@ -99,7 +92,6 @@ async function apiFetch(path: string, options: RequestInit = {}) {
       ...(options.headers || {}),
     },
   });
-
   const json = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(json?.message || `Request failed (${res.status})`);
   return json;
@@ -120,7 +112,6 @@ const getColorName = (hex: string) => {
     "#D3B69C": "Beige",
     "#808000": "Olive",
   };
-
   return colors[hex.toUpperCase()] || hex;
 };
 
@@ -152,7 +143,6 @@ const ProductDetail = () => {
       });
       return Array.from(colors);
     }
-
     return toArray(product?.color);
   }, [product, hasVariants]);
 
@@ -164,7 +154,6 @@ const ProductDetail = () => {
       });
       return Array.from(sizes);
     }
-
     return toArray(product?.size);
   }, [product, hasVariants]);
 
@@ -176,52 +165,55 @@ const ProductDetail = () => {
       });
       return Array.from(fabrics);
     }
-
     return product?.fabricTypes || [];
   }, [product, hasVariants]);
+
+  // Determine which attributes are actually required (based on variants)
+  const requiredAttributes = useMemo(() => {
+    const req = { color: false, size: false, fabric: false };
+    if (!hasVariants) return req;
+
+    req.color = availableColors.length > 0;
+    req.size = availableSizes.length > 0;
+    req.fabric = availableFabrics.length > 0;
+    return req;
+  }, [hasVariants, availableColors, availableSizes, availableFabrics]);
 
   const selectedVariant = useMemo(() => {
     if (!hasVariants || !product?.variants) return null;
 
+    // Return null if any required attribute is missing
+    if ((requiredAttributes.color && !selectedColor) ||
+        (requiredAttributes.size && !selectedSize) ||
+        (requiredAttributes.fabric && !selectedFabric)) {
+      return null;
+    }
+
     return (
       product.variants.find((v) => {
-        const colorMatch = !availableColors.length || v.attributes.color === selectedColor;
-        const sizeMatch = !availableSizes.length || v.attributes.size === selectedSize;
-        const fabricMatch = !availableFabrics.length || v.attributes.fabric === selectedFabric;
+        const colorMatch = !requiredAttributes.color || v.attributes.color === selectedColor;
+        const sizeMatch = !requiredAttributes.size || v.attributes.size === selectedSize;
+        const fabricMatch = !requiredAttributes.fabric || v.attributes.fabric === selectedFabric;
         return colorMatch && sizeMatch && fabricMatch;
       }) || null
     );
-  }, [
-    product,
-    hasVariants,
-    selectedColor,
-    selectedSize,
-    selectedFabric,
-    availableColors,
-    availableSizes,
-    availableFabrics,
-  ]);
+  }, [product, hasVariants, selectedColor, selectedSize, selectedFabric, requiredAttributes]);
 
-  const originalPrice = useMemo(() => {
-    if (selectedVariant) return selectedVariant.price;
-    return Number(product?.price ?? 0);
-  }, [product, selectedVariant]);
-
+  // Base product price (discounted) – always shown in UI
+  const baseOriginalPrice = product?.price ?? 0;
   const discountPercent = product?.discount ?? 0;
+  const baseFinalPrice = baseOriginalPrice * (1 - discountPercent / 100);
 
-  const finalPrice = useMemo(() => {
-    const price = originalPrice;
-    if (discountPercent > 0) {
-      return price * (1 - discountPercent / 100);
-    }
-    return price;
-  }, [originalPrice, discountPercent]);
+  // Price used for cart – if variant selected, use variant price; otherwise fallback (button disabled anyway)
+  const cartPrice = useMemo(() => {
+    if (selectedVariant) return selectedVariant.price;
+    return baseOriginalPrice;
+  }, [selectedVariant, baseOriginalPrice]);
 
   const displayStock = useMemo(() => {
     if (hasVariants) {
       return selectedVariant ? selectedVariant.quantity : 0;
     }
-
     if (typeof product?.quantity === "number") return product.quantity;
     return product?.inStock ? 999 : 0;
   }, [product, hasVariants, selectedVariant]);
@@ -230,33 +222,22 @@ const ProductDetail = () => {
     ? !!(selectedVariant && selectedVariant.quantity > 0)
     : displayStock > 0;
 
-  const requireColor = availableColors.length > 1;
-  const requireSize = availableSizes.length > 1;
-  const requireFabric = availableFabrics.length > 1;
-
   const allOptionsSelected =
     !hasVariants ||
-    ((!requireColor || selectedColor) &&
-      (!requireSize || selectedSize) &&
-      (!requireFabric || selectedFabric));
+    ((!requiredAttributes.color || selectedColor) &&
+     (!requiredAttributes.size || selectedSize) &&
+     (!requiredAttributes.fabric || selectedFabric));
 
   const images = useMemo(() => {
     const list: string[] = [];
 
-    if (selectedVariant?.image) {
-      list.push(selectedVariant.image);
-    }
-
-    if (product?.image && !list.includes(product.image)) {
-      list.push(product.image);
-    }
-
+    if (selectedVariant?.image) list.push(selectedVariant.image);
+    if (product?.image && !list.includes(product.image)) list.push(product.image);
     if (product?.images?.length) {
       product.images.forEach((img) => {
         if (img && !list.includes(img)) list.push(img);
       });
     }
-
     if (product?.galleryImages?.length) {
       product.galleryImages.forEach((img) => {
         if (img && !list.includes(img)) list.push(img);
@@ -277,25 +258,7 @@ const ProductDetail = () => {
       maximumFractionDigits: 0,
     }).format(p);
 
-  useEffect(() => {
-    if (!product) return;
-
-    if (hasVariants && product.variants && product.variants.length > 0) {
-      let variantToSelect = product.variants.find((v) => v.quantity > 0);
-      if (!variantToSelect) variantToSelect = product.variants[0];
-
-      if (variantToSelect) {
-        setSelectedColor(variantToSelect.attributes.color || "");
-        setSelectedSize(variantToSelect.attributes.size || "");
-        setSelectedFabric(variantToSelect.attributes.fabric || "");
-      }
-    } else {
-      if (availableColors.length === 1) setSelectedColor(availableColors[0]);
-      if (availableSizes.length === 1) setSelectedSize(availableSizes[0]);
-      if (availableFabrics.length === 1) setSelectedFabric(availableFabrics[0]);
-    }
-  }, [product, hasVariants, availableColors, availableSizes, availableFabrics]);
-
+  // Fetch product and related items
   useEffect(() => {
     (async () => {
       try {
@@ -303,6 +266,11 @@ const ProductDetail = () => {
         const data = await apiFetch(`/products/${id}`, { method: "GET" });
         const p: Product = data?.product || data;
         setProduct(p);
+
+        // ✅ Reset all variant selections to empty (no default)
+        setSelectedColor("");
+        setSelectedSize("");
+        setSelectedFabric("");
 
         if (p?.category) {
           const rel = await apiFetch(`/products?category=${encodeURIComponent(p.category)}&limit=8`);
@@ -329,28 +297,39 @@ const ProductDetail = () => {
     })();
   }, [id]);
 
+  // For non‑variant products, pre‑select if only one option exists (convenience)
+  useEffect(() => {
+    if (!product) return;
+    if (hasVariants) return; // variant products: never auto-select
+
+    if (availableColors.length === 1) setSelectedColor(availableColors[0]);
+    if (availableSizes.length === 1) setSelectedSize(availableSizes[0]);
+    if (availableFabrics.length === 1) setSelectedFabric(availableFabrics[0]);
+  }, [product, hasVariants, availableColors, availableSizes, availableFabrics]);
+
   const validateSelections = () => {
-    if (requireColor && !selectedColor) {
+    if (requiredAttributes.color && !selectedColor) {
       toast({ title: "Select a color", description: "Please choose a color to continue." });
       return false;
     }
-
-    if (requireSize && !selectedSize) {
+    if (requiredAttributes.size && !selectedSize) {
       toast({ title: "Select a size", description: "Please choose a size to continue." });
       return false;
     }
-
-    if (requireFabric && !selectedFabric) {
+    if (requiredAttributes.fabric && !selectedFabric) {
       toast({ title: "Select a fabric", description: "Please choose a fabric to continue." });
       return false;
     }
-
     return true;
   };
 
   const handleAddToCart = () => {
     if (!product?._id) return;
     if (!validateSelections()) return;
+    if (!allOptionsSelected) {
+      toast({ title: "Select all options", description: "Please choose all required options." });
+      return;
+    }
 
     const attributes: { size?: string; color?: string; fabric?: string } = {};
     if (selectedSize) attributes.size = selectedSize;
@@ -360,9 +339,9 @@ const ProductDetail = () => {
     const cartItem = {
       id: product._id,
       name: productName,
-      price: finalPrice,
-      originalPrice,
-      discountPercent,
+      price: cartPrice,                // ✅ uses variant price (or base price, but variant required)
+      originalPrice: cartPrice,
+      discountPercent: discountPercent,
       gst: product.gst ?? 0,
       priceIncludesGst: product.priceIncludesGst ?? true,
       isCustomized: product.isCustomized ?? false,
@@ -385,12 +364,11 @@ const ProductDetail = () => {
 
   const handleWishlistToggle = () => {
     if (!product?._id) return;
-
     toggleFavorite({
       productId: product._id,
       id: product._id,
       name: productName,
-      price: finalPrice,
+      price: baseFinalPrice,  // UI always shows base price, but wishlist can use base price
       image: images[0],
       type: product?.type || "",
       color: selectedColor,
@@ -533,12 +511,16 @@ const ProductDetail = () => {
               </h1>
             </div>
 
+            {/* ✅ PRICE SECTION – always shows discounted base price */}
             <div className="flex items-baseline gap-4">
-              <span className="text-3xl font-bold">{formatPrice(finalPrice)}</span>
+              <span className="text-3xl font-bold">{formatPrice(baseFinalPrice)}</span>
               {discountPercent > 0 && (
                 <span className="text-xl text-white/50 line-through">
-                  {formatPrice(originalPrice)}
+                  {formatPrice(baseOriginalPrice)}
                 </span>
+              )}
+              {hasVariants && (
+                <span className="text-sm text-white/60 ml-2">(select options)</span>
               )}
             </div>
 
@@ -552,7 +534,7 @@ const ProductDetail = () => {
                   <p className="font-medium text-white mb-3">Color</p>
                   {selectedColor ? (
                     <p className="text-xs text-white/60">{getColorName(selectedColor)}</p>
-                  ) : requireColor ? (
+                  ) : requiredAttributes.color ? (
                     <p className="text-xs text-red-300">Required</p>
                   ) : null}
                 </div>
@@ -584,7 +566,7 @@ const ProductDetail = () => {
                   <p className="font-medium text-white mb-3">Size</p>
                   {selectedSize ? (
                     <p className="text-xs text-white/60">{selectedSize}</p>
-                  ) : requireSize ? (
+                  ) : requiredAttributes.size ? (
                     <p className="text-xs text-red-300">Required</p>
                   ) : null}
                 </div>
@@ -615,7 +597,7 @@ const ProductDetail = () => {
                   <p className="font-medium text-white mb-3">Fabric</p>
                   {selectedFabric ? (
                     <p className="text-xs text-white/60 capitalize">{selectedFabric}</p>
-                  ) : requireFabric ? (
+                  ) : requiredAttributes.fabric ? (
                     <p className="text-xs text-red-300">Required</p>
                   ) : null}
                 </div>
@@ -778,7 +760,6 @@ const ProductDetail = () => {
         <section className="mt-20 border-t border-white/10 pt-12">
           <div className="max-w-4xl">
             <h2 className="text-2xl font-heading font-bold text-white mb-4">Product Description</h2>
-
             <div className="mt-6 grid sm:grid-cols-2 gap-4">
               {[
                 "Crafted with premium-quality materials for long-lasting durability.",
