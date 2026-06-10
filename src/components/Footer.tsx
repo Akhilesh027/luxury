@@ -130,16 +130,7 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
               Subscribe to our newsletter for exclusive offers and design inspiration.
             </p>
 
-            <div className="flex gap-2">
-              <input
-                type="email"
-                placeholder="Your email"
-                className="flex-1 px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-sm text-white placeholder:text-white/50 outline-none focus:border-white"
-              />
-              <button className="px-4 py-2 bg-white text-[#7a5a1e] rounded-lg font-medium hover:bg-[#d4af37] hover:text-white transition-colors">
-                Subscribe
-              </button>
-            </div>
+            
           </div>
 
         </div>
