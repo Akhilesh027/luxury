@@ -134,13 +134,13 @@ const Header = () => {
         `${API_BASE}/luxury/products/search?q=${encodeURIComponent(query)}&limit=10`,
         { signal: controller.signal }
       );
-      
+
       if (!response.ok) {
         throw new Error(`Search failed (${response.status})`);
       }
-      
+
       const data = await response.json();
-      
+
       if (data.success && Array.isArray(data.data)) {
         setSearchResults(data.data);
         setShowSearchResults(true);
@@ -465,16 +465,14 @@ const Header = () => {
               <Button
                 key={menu}
                 variant="nav"
-                className={`px-4 py-2 capitalize text-white hover:text-yellow-200 ${
-                  activeMenu === menu && showSecondRow ? "text-yellow-200" : ""
-                }`}
+                className={`px-4 py-2 capitalize text-white hover:text-yellow-200 ${activeMenu === menu && showSecondRow ? "text-yellow-200" : ""
+                  }`}
                 onClick={() => handleMenuClick(menu)}
               >
                 {menu === "rooms" ? "Select a room" : menu}
                 <ChevronDown
-                  className={`ml-1 h-4 w-4 transition-transform duration-200 ${
-                    activeMenu === menu && showSecondRow ? "rotate-180" : ""
-                  }`}
+                  className={`ml-1 h-4 w-4 transition-transform duration-200 ${activeMenu === menu && showSecondRow ? "rotate-180" : ""
+                    }`}
                 />
               </Button>
             ))}
@@ -590,9 +588,8 @@ const Header = () => {
                     parents.map((p) => (
                       <button
                         key={p.id}
-                        className={`text-sm transition-colors duration-200 hover:text-yellow-200 ${
-                          hoveredParentId === p.id ? "text-yellow-200" : "text-white"
-                        }`}
+                        className={`text-sm transition-colors duration-200 hover:text-yellow-200 ${hoveredParentId === p.id ? "text-yellow-200" : "text-white"
+                          }`}
                         onMouseEnter={() => setHoveredParentId(p.id)}
                       >
                         {p.name}

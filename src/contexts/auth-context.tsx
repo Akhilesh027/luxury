@@ -218,7 +218,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           description: data.message || "You have successfully logged in.",
         });
 
-        await getProfile().catch(() => {});
+        await getProfile().catch(() => { });
         return true;
       } catch (err) {
         toast({
@@ -266,7 +266,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           description: data.message || "Welcome! Your luxury account has been created.",
         });
 
-        await getProfile().catch(() => {});
+        await getProfile().catch(() => { });
         return true;
       } catch (err) {
         toast({
@@ -317,7 +317,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           description: "You are logged in with Google.",
         });
 
-        await getProfile().catch(() => {});
+        await getProfile().catch(() => { });
         return true;
       } catch (err: any) {
         toast({

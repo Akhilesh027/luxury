@@ -47,7 +47,7 @@ const ScrollToTop = () => {
 
 // Floating WhatsApp component with pre‑filled quotation request
 const FloatingWhatsApp = () => {
-  const whatsappNumber = "917075848516";
+  const whatsappNumber = "918143678491";
   const message = encodeURIComponent(
     "Hello, I would like to request a customized quotation for your products. " +
     "Please provide me with the best offer based on my requirements. Thank you!"
@@ -78,7 +78,7 @@ const App = () => (
         <TooltipProvider>
           <Toaster />
           <Sonner />
-          <BrowserRouter>
+          <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
             <CartProvider>
               <ScrollToTop />
               <FloatingWhatsApp />

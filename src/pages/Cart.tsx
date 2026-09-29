@@ -185,8 +185,8 @@ const Cart = () => {
   // FREE shipping (luxury tier)
   const shippingBase = 0;
   const shipping = Math.max(0, shippingBase - shippingDiscount);
-const taxableValue = Math.max(0, effectiveSubtotal - effectiveGst);
-const finalTotal = Math.max(0, effectiveSubtotal - discount) + shipping;
+  const taxableValue = Math.max(0, effectiveSubtotal - effectiveGst);
+  const finalTotal = Math.max(0, effectiveSubtotal - discount) + shipping;
   // Helper for item identifier (same as context)
   const getItemIdentifier = (item: CartItem): string => {
     if (item.cartItemId) return item.cartItemId;
@@ -337,17 +337,17 @@ const finalTotal = Math.max(0, effectiveSubtotal - discount) + shipping;
 
       const normalizedCoupon = data?.coupon
         ? {
-            couponId: data.coupon.couponId || data.coupon.id,
-            id: data.coupon.id,
-            code: data.coupon.code,
-            type: data.coupon.type,
-            value: data.coupon.value,
-            maxDiscount: data.coupon.maxDiscount,
-            minOrder: data.coupon.minOrder,
-            website: data.coupon.website,
-            applyTo: data.coupon.applyTo,
-            categories: data.coupon.categories || [],
-          }
+          couponId: data.coupon.couponId || data.coupon.id,
+          id: data.coupon.id,
+          code: data.coupon.code,
+          type: data.coupon.type,
+          value: data.coupon.value,
+          maxDiscount: data.coupon.maxDiscount,
+          minOrder: data.coupon.minOrder,
+          website: data.coupon.website,
+          applyTo: data.coupon.applyTo,
+          categories: data.coupon.categories || [],
+        }
         : null;
 
       const d = Number(data.discount || 0);
@@ -684,22 +684,22 @@ const finalTotal = Math.max(0, effectiveSubtotal - discount) + shipping;
                 )}
 
                 {/* 3. Subtotal after product discount */}
-<div className="flex justify-between font-medium">
-  <span className="text-white/70">Subtotal</span>
-  <span className="text-white">{formatPrice(effectiveSubtotal)}</span>
-</div>
+                <div className="flex justify-between font-medium">
+                  <span className="text-white/70">Subtotal</span>
+                  <span className="text-white">{formatPrice(effectiveSubtotal)}</span>
+                </div>
 
-{/* Taxable Value */}
-<div className="flex justify-between">
-  <span className="text-white/70">Taxable Value</span>
-  <span className="text-white">{formatPrice(taxableValue)}</span>
-</div>
+                {/* Taxable Value */}
+                <div className="flex justify-between">
+                  <span className="text-white/70">Taxable Value</span>
+                  <span className="text-white">{formatPrice(taxableValue)}</span>
+                </div>
 
-{/* GST Included */}
-<div className="flex justify-between">
-  <span className="text-white/70">GST</span>
-  <span className="text-white">{formatPrice(effectiveGst)}</span>
-</div>
+                {/* GST Included */}
+                <div className="flex justify-between">
+                  <span className="text-white/70">GST</span>
+                  <span className="text-white">{formatPrice(effectiveGst)}</span>
+                </div>
 
                 {/* 5. Coupon Discount (if any) */}
                 {discount > 0 && (

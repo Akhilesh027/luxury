@@ -97,10 +97,10 @@ const NewProducts = () => {
         const list: Product[] = Array.isArray(json)
           ? json
           : Array.isArray(json?.data)
-          ? json.data
-          : Array.isArray(json?.products)
-          ? json.products
-          : [];
+            ? json.data
+            : Array.isArray(json?.products)
+              ? json.products
+              : [];
 
         const filtered = list.filter(
           (p) =>
@@ -321,11 +321,10 @@ const NewProducts = () => {
                         e.stopPropagation();
                         toggleFavorite(id);
                       }}
-                      className={`absolute top-3 right-3 flex h-9 w-9 items-center justify-center rounded-full border transition-all duration-200 ${
-                        favorites.includes(id)
-                          ? "border-[#ffd76a]/40 bg-[#ffd76a] text-[#2b1d0e]"
-                          : "border-[#f8f3e7]/15 bg-[#2b1d0e]/75 text-[#f8f3e7] backdrop-blur-sm hover:border-[#ffd76a]/30 hover:bg-[#3b2a12] hover:text-[#ffd76a]"
-                      }`}
+                      className={`absolute top-3 right-3 flex h-9 w-9 items-center justify-center rounded-full border transition-all duration-200 ${favorites.includes(id)
+                        ? "border-[#ffd76a]/40 bg-[#ffd76a] text-[#2b1d0e]"
+                        : "border-[#f8f3e7]/15 bg-[#2b1d0e]/75 text-[#f8f3e7] backdrop-blur-sm hover:border-[#ffd76a]/30 hover:bg-[#3b2a12] hover:text-[#ffd76a]"
+                        }`}
                       aria-label="Toggle favorite"
                     >
                       <Heart

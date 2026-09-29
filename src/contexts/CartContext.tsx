@@ -149,8 +149,8 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
           (typeof prod?.images === "string"
             ? prod.images
             : Array.isArray(prod?.images)
-            ? prod?.images?.[0]
-            : "");
+              ? prod?.images?.[0]
+              : "");
 
         return {
           id: productId,
@@ -270,7 +270,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
 
     syncTimerRef.current = setTimeout(() => {
-      syncNow().catch(() => {});
+      syncNow().catch(() => { });
     }, 600);
 
     return () => {
@@ -382,7 +382,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       apiFetch("/cart", {
         method: "PUT",
         body: JSON.stringify({ items: [] }),
-      }).catch(() => {});
+      }).catch(() => { });
     }
   }, [apiFetch, token]);
 

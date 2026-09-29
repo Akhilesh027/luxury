@@ -138,7 +138,7 @@ const ProfilePage = () => {
 
   // load profile
   useEffect(() => {
-    if (isAuthenticated) getProfile().catch(() => {});
+    if (isAuthenticated) getProfile().catch(() => { });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated]);
 
@@ -185,8 +185,8 @@ const ProfilePage = () => {
   // ✅ also load minimal data for right sticky panel
   useEffect(() => {
     if (!isAuthenticated) return;
-    loadAddresses().catch(() => {});
-    loadOrders().catch(() => {});
+    loadAddresses().catch(() => { });
+    loadOrders().catch(() => { });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated]);
 
@@ -806,11 +806,10 @@ function SideBtn({
   return (
     <button
       onClick={onClick}
-      className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl border transition-colors ${
-        active
-          ? "border-white bg-white/10 text-white"
-          : "border-white/20 bg-black/20 text-white/80 hover:bg-white/10"
-      }`}
+      className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl border transition-colors ${active
+        ? "border-white bg-white/10 text-white"
+        : "border-white/20 bg-black/20 text-white/80 hover:bg-white/10"
+        }`}
     >
       <div className="flex items-center gap-3">
         <span className={active ? "text-white" : "text-white/80"}>{icon}</span>
@@ -868,9 +867,8 @@ function Row({
 }) {
   return (
     <div
-      className={`flex justify-between ${
-        strong ? "font-medium text-white" : "text-white/80"
-      }`}
+      className={`flex justify-between ${strong ? "font-medium text-white" : "text-white/80"
+        }`}
     >
       <span className="text-white/70">{label}</span>
       <span>{value}</span>

@@ -34,22 +34,22 @@ export const LoginForm = ({ onSuccess, onSwitchToRegister, redirectTo }: LoginFo
     const handlePendingCheckout = async () => {
       if (isAuthenticated && !isSyncing) {
         const pendingCart = sessionStorage.getItem('checkout_pending_cart');
-        
+
         if (pendingCart) {
           setIsSyncing(true);
           try {
             // Just sync the current cart to server (don't merge/reload)
             await syncNow();
-            
+
             const pendingData = JSON.parse(pendingCart);
-            
+
             // Check if the pending data is still valid (less than 1 hour old)
             if (pendingData.timestamp && Date.now() - pendingData.timestamp < 3600000) {
               // Clear the pending cart from sessionStorage
               sessionStorage.removeItem('checkout_pending_cart');
-              
+
               toast.success("Ready for checkout!");
-              
+
               // Navigate to checkout with the stored state
               navigate("/checkout", {
                 state: {
@@ -176,7 +176,7 @@ export const LoginForm = ({ onSuccess, onSwitchToRegister, redirectTo }: LoginFo
   return (
     <>
       <form onSubmit={handleSubmit} className="space-y-5">
-        
+
         {/* Email */}
         <div className="space-y-2">
           <label className="text-sm font-medium text-white">Email Address</label>
@@ -232,11 +232,11 @@ export const LoginForm = ({ onSuccess, onSwitchToRegister, redirectTo }: LoginFo
         </div>
 
         {/* Submit */}
-        <Button 
-          variant="gold" 
-          type="submit" 
-          className="w-full" 
-          size="lg" 
+        <Button
+          variant="gold"
+          type="submit"
+          className="w-full"
+          size="lg"
           disabled={isSubmitting}
         >
           {isSubmitting ? (

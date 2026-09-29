@@ -7,6 +7,7 @@ import PopularCategories from "@/components/PopularCategories";
 import NewProducts from "@/components/NewProducts";
 import IdeasSection from "@/components/IdeasSection";
 import RoomsSection from "@/components/RoomsSection";
+import { FurnitureTestimonials } from "@/components/testimonials/FurnitureTestimonials";
 import Footer from "@/components/Footer";
 
 const Index = () => {
@@ -29,6 +30,7 @@ const Index = () => {
         <NewProducts />
         <IdeasSection />
         <RoomsSection />
+        <FurnitureTestimonials />
       </main>
       <Footer />
       <PhoneNumberModal open={showPhoneModal} onOpenChange={setShowPhoneModal} />

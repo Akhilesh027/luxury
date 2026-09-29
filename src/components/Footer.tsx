@@ -27,10 +27,10 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
             </p>
 
             <a
-              href="tel:+917075848516"
+              href="tel:+918143678491"
               className="text-2xl font-heading font-bold text-white hover:text-[#d4af37] transition-colors"
             >
-              +91 7075848516
+              +91 81436 78491
             </a>
 
             <div className="flex items-center gap-2 mt-4">
@@ -88,7 +88,7 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
                 { name: "Guarantee / Warranty", path: "/warranty-refund" },
                 { name: "Privacy Policy", path: "/privacy-policy" },
                 { name: "Replacement Policy", path: "/replacement-policy" },
-                { name: "Showroom in Hyderabad", path: "/showroom" },
+                { name: "Experience Centers & Showrooms", path: "/contact" },
               ].map((link) => (
                 <li key={link.name}>
                   <Link
@@ -105,17 +105,13 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
           {/* Locations */}
           <div>
             <h3 className="text-lg font-heading font-semibold mb-6 text-white">
-              Our Locations
+              Experience Center
             </h3>
 
-            <ul className="space-y-4 text-sm text-white/80">
+            <ul className="space-y-3.5 text-xs text-white/90">
               <li>
-                WorkFlo Bizness Square, 4th Floor,  
-                H No 1-98/3/5/23 to 27, Jubilee Enclave,  
-                Madhapur, RR Dist, Telangana – 500081
-              </li>
-              <li>
-                Uppal, Hyderabad, Telangana – 500039
+                <span className="font-bold text-[#f3deb0] block uppercase tracking-wider">Experience Center & Office:</span>
+                Road No 1, Bagayath layout, 3rd floor, Plot 288, Uppal, Hyderabad, Telangana 500039
               </li>
             </ul>
           </div>

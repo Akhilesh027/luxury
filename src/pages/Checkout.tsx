@@ -193,7 +193,7 @@ const getColorName = (hex: string) => {
 };
 
 const Checkout = () => {
-const { items, clearCart } = useCart();  const navigate = useNavigate();
+  const { items, clearCart } = useCart(); const navigate = useNavigate();
   const location = useLocation();
 
   const [step, setStep] = useState<1 | 2>(1);
@@ -254,53 +254,53 @@ const { items, clearCart } = useCart();  const navigate = useNavigate();
   const shipping = useMemo(() => {
     return Math.max(0, Number(shippingBase || 0) - Number(shippingDiscount || 0));
   }, [shippingBase, shippingDiscount]);
-const detailedPricing = useMemo(() => {
-  let originalTotalInclusive = 0;
-  let discountedTotalInclusive = 0;
-  let totalGst = 0;
-  let totalDiscountInclusive = 0;
-  let firstDiscountPercent = 0;
+  const detailedPricing = useMemo(() => {
+    let originalTotalInclusive = 0;
+    let discountedTotalInclusive = 0;
+    let totalGst = 0;
+    let totalDiscountInclusive = 0;
+    let firstDiscountPercent = 0;
 
-  for (const item of items as any[]) {
-    const origPrice = item.originalPrice || item.price || 0;
-    const discPercent = item.discountPercent || 0;
-    const gstPercent = item.gst || 0;
-    const priceIncludesGst = item.priceIncludesGst ?? true;
-    const qty = item.quantity || 1;
+    for (const item of items as any[]) {
+      const origPrice = item.originalPrice || item.price || 0;
+      const discPercent = item.discountPercent || 0;
+      const gstPercent = item.gst || 0;
+      const priceIncludesGst = item.priceIncludesGst ?? true;
+      const qty = item.quantity || 1;
 
-    const { discountedInclusive, discountedExclusive } = getDiscountedPrice(
-      origPrice,
-      discPercent,
-      priceIncludesGst,
-      gstPercent
-    );
+      const { discountedInclusive, discountedExclusive } = getDiscountedPrice(
+        origPrice,
+        discPercent,
+        priceIncludesGst,
+        gstPercent
+      );
 
-    const originalInclusive = priceIncludesGst
-      ? origPrice
-      : origPrice * (1 + gstPercent / 100);
+      const originalInclusive = priceIncludesGst
+        ? origPrice
+        : origPrice * (1 + gstPercent / 100);
 
-    originalTotalInclusive += originalInclusive * qty;
-    discountedTotalInclusive += discountedInclusive * qty;
-    totalGst += discountedExclusive * qty * (gstPercent / 100);
-    totalDiscountInclusive += originalInclusive * qty - discountedInclusive * qty;
+      originalTotalInclusive += originalInclusive * qty;
+      discountedTotalInclusive += discountedInclusive * qty;
+      totalGst += discountedExclusive * qty * (gstPercent / 100);
+      totalDiscountInclusive += originalInclusive * qty - discountedInclusive * qty;
 
-    if (discPercent > 0 && firstDiscountPercent === 0) {
-      firstDiscountPercent = discPercent;
+      if (discPercent > 0 && firstDiscountPercent === 0) {
+        firstDiscountPercent = discPercent;
+      }
     }
-  }
 
-  return {
-    originalTotalInclusive,
-    discountedTotalInclusive,
-    totalGst,
-    totalDiscountInclusive,
-    firstDiscountPercent,
-    hasDiscount: totalDiscountInclusive > 0,
-  };
-}, [items]);
+    return {
+      originalTotalInclusive,
+      discountedTotalInclusive,
+      totalGst,
+      totalDiscountInclusive,
+      firstDiscountPercent,
+      hasDiscount: totalDiscountInclusive > 0,
+    };
+  }, [items]);
 
-const totalPrice = detailedPricing.discountedTotalInclusive;
-const totalGst = detailedPricing.totalGst;
+  const totalPrice = detailedPricing.discountedTotalInclusive;
+  const totalGst = detailedPricing.totalGst;
   // ✅ Compute product discount totals from items
   const productDiscountDetails = useMemo(() => {
     let originalTotal = 0;
@@ -334,9 +334,9 @@ const totalGst = detailedPricing.totalGst;
   }, [items]);
 
   // Final total already includes totalPrice (discounted subtotal) - discount + shipping + totalGst
-const finalTotal = useMemo(() => {
-  return Math.max(0, totalPrice - discount) + shipping;
-}, [totalPrice, discount, shipping]);
+  const finalTotal = useMemo(() => {
+    return Math.max(0, totalPrice - discount) + shipping;
+  }, [totalPrice, discount, shipping]);
   useEffect(() => {
     const token = getToken();
     if (!token) {
@@ -737,10 +737,10 @@ const finalTotal = useMemo(() => {
     try {
       let razorpayProof:
         | {
-            razorpay_order_id: string;
-            razorpay_payment_id: string;
-            razorpay_signature: string;
-          }
+          razorpay_order_id: string;
+          razorpay_payment_id: string;
+          razorpay_signature: string;
+        }
         | null = null;
 
       if (paymentMethod === "razorpay") {
@@ -789,10 +789,10 @@ const finalTotal = useMemo(() => {
           gateway: paymentMethod === "razorpay" ? "razorpay" : undefined,
           ...(paymentMethod === "razorpay"
             ? {
-                razorpayOrderId: razorpayProof?.razorpay_order_id,
-                razorpayPaymentId: razorpayProof?.razorpay_payment_id,
-                razorpaySignature: razorpayProof?.razorpay_signature,
-              }
+              razorpayOrderId: razorpayProof?.razorpay_order_id,
+              razorpayPaymentId: razorpayProof?.razorpay_payment_id,
+              razorpaySignature: razorpayProof?.razorpay_signature,
+            }
             : {}),
         },
 
@@ -918,11 +918,10 @@ const finalTotal = useMemo(() => {
                       addresses.map((a) => (
                         <label
                           key={a._id}
-                          className={`block rounded-xl border p-4 cursor-pointer transition-colors ${
-                            selectedAddressId === a._id
-                              ? "border-[#d4af37] bg-[#d4af37]/10"
-                              : "border-white/20 bg-black/40 backdrop-blur-sm hover:bg-black/60"
-                          }`}
+                          className={`block rounded-xl border p-4 cursor-pointer transition-colors ${selectedAddressId === a._id
+                            ? "border-[#d4af37] bg-[#d4af37]/10"
+                            : "border-white/20 bg-black/40 backdrop-blur-sm hover:bg-black/60"
+                            }`}
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div className="flex items-start gap-3">
@@ -1372,11 +1371,10 @@ const PaymentOption = ({
   <button
     type="button"
     onClick={onClick}
-    className={`flex items-start gap-3 rounded-xl border p-4 text-left transition-colors ${
-      active
-        ? "border-[#d4af37] bg-[#d4af37]/10"
-        : "border-white/20 bg-black/40 hover:bg-black/60"
-    }`}
+    className={`flex items-start gap-3 rounded-xl border p-4 text-left transition-colors ${active
+      ? "border-[#d4af37] bg-[#d4af37]/10"
+      : "border-white/20 bg-black/40 hover:bg-black/60"
+      }`}
   >
     <div className={`mt-0.5 ${active ? "text-[#d4af37]" : "text-white/60"}`}>{icon}</div>
     <div>
@@ -1399,13 +1397,12 @@ const StepIndicator = ({
 }) => (
   <div className="flex items-center gap-2">
     <div
-      className={`w-10 h-10 rounded-full flex items-center justify-center font-bold transition-colors ${
-        completed
-          ? "bg-emerald-500 text-white"
-          : active
-            ? "bg-[#d4af37] text-[#7a5a1e]"
-            : "bg-white/10 text-white/60"
-      }`}
+      className={`w-10 h-10 rounded-full flex items-center justify-center font-bold transition-colors ${completed
+        ? "bg-emerald-500 text-white"
+        : active
+          ? "bg-[#d4af37] text-[#7a5a1e]"
+          : "bg-white/10 text-white/60"
+        }`}
     >
       {completed ? <CheckCircle className="w-5 h-5" /> : number}
     </div>

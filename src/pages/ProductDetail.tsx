@@ -308,8 +308,8 @@ const ProductDetail = () => {
           const list: Product[] = Array.isArray(rel?.products)
             ? rel.products
             : Array.isArray(rel?.data)
-            ? rel.data
-            : [];
+              ? rel.data
+              : [];
 
           const filtered = list
             .filter((x) => String(x._id) !== String(p._id))
@@ -406,11 +406,9 @@ const ProductDetail = () => {
 
     toast({
       title: "Added to cart",
-      description: `${quantity}x ${productName}${
-        selectedColor ? ` • Color: ${getColorName(selectedColor)}` : ""
-      }${selectedSize ? ` • Size: ${selectedSize}` : ""}${
-        selectedFabric ? ` • Fabric: ${selectedFabric}` : ""
-      } added.`,
+      description: `${quantity}x ${productName}${selectedColor ? ` • Color: ${getColorName(selectedColor)}` : ""
+        }${selectedSize ? ` • Size: ${selectedSize}` : ""}${selectedFabric ? ` • Fabric: ${selectedFabric}` : ""
+        } added.`,
     });
   };
 
@@ -433,9 +431,8 @@ const ProductDetail = () => {
   const handleShare = async () => {
     const url = window.location.href;
     const title = productName;
-    const text = `Check out ${productName} on JSGALLOR! ${
-      product?.description?.slice(0, 100) || ""
-    }`;
+    const text = `Check out ${productName} on JSGALLOR! ${product?.description?.slice(0, 100) || ""
+      }`;
 
     if (navigator.share) {
       try {
@@ -549,16 +546,14 @@ const ProductDetail = () => {
 
               <button
                 onClick={handleWishlistToggle}
-                className={`absolute top-4 right-4 w-10 h-10 rounded-full flex items-center justify-center transition-all ${
-                  isFavorite(product._id)
-                    ? "bg-[#d4af37] text-[#7a5a1e]"
-                    : "bg-black/60 backdrop-blur-sm text-white hover:bg-[#d4af37] hover:text-[#7a5a1e]"
-                }`}
+                className={`absolute top-4 right-4 w-10 h-10 rounded-full flex items-center justify-center transition-all ${isFavorite(product._id)
+                  ? "bg-[#d4af37] text-[#7a5a1e]"
+                  : "bg-black/60 backdrop-blur-sm text-white hover:bg-[#d4af37] hover:text-[#7a5a1e]"
+                  }`}
               >
                 <Heart
-                  className={`w-5 h-5 ${
-                    isFavorite(product._id) ? "fill-current" : ""
-                  }`}
+                  className={`w-5 h-5 ${isFavorite(product._id) ? "fill-current" : ""
+                    }`}
                 />
               </button>
             </div>
@@ -568,11 +563,10 @@ const ProductDetail = () => {
                 <button
                   key={`${img}-${idx}`}
                   onClick={() => setSelectedImage(idx)}
-                  className={`w-20 h-20 rounded-lg overflow-hidden border-2 transition-colors shrink-0 ${
-                    selectedImage === idx
-                      ? "border-[#d4af37]"
-                      : "border-transparent"
-                  }`}
+                  className={`w-20 h-20 rounded-lg overflow-hidden border-2 transition-colors shrink-0 ${selectedImage === idx
+                    ? "border-[#d4af37]"
+                    : "border-transparent"
+                    }`}
                 >
                   <img
                     src={img}
@@ -644,11 +638,10 @@ const ProductDetail = () => {
                       <button
                         key={`${color}-${idx}`}
                         onClick={() => setSelectedColor(color)}
-                        className={`relative w-10 h-10 rounded-full border-2 transition-all flex items-center justify-center ${
-                          selected
-                            ? "border-[#d4af37] scale-110"
-                            : "border-transparent hover:border-white/30"
-                        }`}
+                        className={`relative w-10 h-10 rounded-full border-2 transition-all flex items-center justify-center ${selected
+                          ? "border-[#d4af37] scale-110"
+                          : "border-transparent hover:border-white/30"
+                          }`}
                         style={{ backgroundColor: isHex ? color : undefined }}
                       >
                         {!isHex && (
@@ -685,11 +678,10 @@ const ProductDetail = () => {
                       <button
                         key={size}
                         onClick={() => setSelectedSize(size)}
-                        className={`px-4 py-2 rounded-lg border text-sm font-medium transition-all ${
-                          selected
-                            ? "border-[#d4af37] bg-[#d4af37]/10 text-white"
-                            : "border-white/20 text-white/80 hover:border-white/40"
-                        }`}
+                        className={`px-4 py-2 rounded-lg border text-sm font-medium transition-all ${selected
+                          ? "border-[#d4af37] bg-[#d4af37]/10 text-white"
+                          : "border-white/20 text-white/80 hover:border-white/40"
+                          }`}
                       >
                         {size}
                       </button>
@@ -721,11 +713,10 @@ const ProductDetail = () => {
                       <button
                         key={fabric}
                         onClick={() => setSelectedFabric(fabric)}
-                        className={`px-4 py-2 rounded-lg border text-sm font-medium transition-all capitalize ${
-                          selected
-                            ? "border-[#d4af37] bg-[#d4af37]/10 text-white"
-                            : "border-white/20 text-white/80 hover:border-white/40"
-                        }`}
+                        className={`px-4 py-2 rounded-lg border text-sm font-medium transition-all capitalize ${selected
+                          ? "border-[#d4af37] bg-[#d4af37]/10 text-white"
+                          : "border-white/20 text-white/80 hover:border-white/40"
+                          }`}
                       >
                         {fabric}
                       </button>
@@ -743,12 +734,11 @@ const ProductDetail = () => {
                   onClick={() => {
                     const message = `Hi, I'm interested in customizing this product:%0A%0A*Name:* ${encodeURIComponent(
                       productName
-                    )}%0A*ID:* ${
-                      product._id
-                    }%0A%0ACan you please share customization options?`;
+                    )}%0A*ID:* ${product._id
+                      }%0A%0ACan you please share customization options?`;
 
                     window.open(
-                      `https://wa.me/917075848516?text=${message}`,
+                      `https://wa.me/918143678491?text=${message}`,
                       "_blank"
                     );
                   }}
@@ -813,15 +803,15 @@ const ProductDetail = () => {
                     hasVariants && !selectedVariant
                       ? "text-yellow-300"
                       : inStock
-                      ? "text-green-300"
-                      : "text-red-300"
+                        ? "text-green-300"
+                        : "text-red-300"
                   }
                 >
                   {hasVariants && !selectedVariant
                     ? "Select options to see availability"
                     : inStock
-                    ? `In Stock (${displayStock})`
-                    : "Out of Stock"}
+                      ? `In Stock (${displayStock})`
+                      : "Out of Stock"}
                 </span>
               </div>
             </div>
@@ -865,8 +855,8 @@ const ProductDetail = () => {
                 {!inStock
                   ? "Out of Stock"
                   : hasVariants && !allOptionsSelected
-                  ? "Select Options"
-                  : "Add to Cart"}
+                    ? "Select Options"
+                    : "Add to Cart"}
               </Button>
 
               <Button

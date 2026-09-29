@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams, Link, useParams } from "react-router-dom";
+import { useSearchParams, Link, useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Filter, X, Heart, ChevronDown, Grid, List, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -45,7 +45,12 @@ type ApiCategory = {
 };
 
 const getToken = () => localStorage.getItem(TOKEN_KEY);
-const norm = (v?: string | null) => String(v || "").toLowerCase().trim();
+const norm = (v?: string | null) =>
+  String(v || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
 
 const getCatId = (c?: ApiCategory | null) => String(c?._id || c?.id || "");
 const getParentId = (c?: ApiCategory | null) =>
@@ -74,15 +79,15 @@ const Catalog = () => {
 
   const { isFavorite, toggleFavorite } = useFavorites();
 
+  const navigate = useNavigate();
+
   const activePriceMin = searchParams.get("priceMin");
   const activePriceMax = searchParams.get("priceMax");
-  const searchQuery = searchParams.get("search") || "";
+  const searchQuery = searchParams.get("search") || searchParams.get("q") || "";
 
-  // IMPORTANT:
-  // Filters are controlled only by query params.
-  // Header route params are converted to query params once in the effect below.
-  const filterCategorySlug = searchParams.get("cat") || null;
-  const filterSubSlug = searchParams.get("sub") || null;
+  // Support both route params (/catalog/:cat/:sub) and query params (?cat= & ?sub= / ?category= & ?subcategory=)
+  const filterCategorySlug = categorySlug || searchParams.get("cat") || searchParams.get("category") || null;
+  const filterSubSlug = subCategorySlug || searchParams.get("sub") || searchParams.get("subcategory") || null;
 
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -90,21 +95,6 @@ const Catalog = () => {
 
   const [categories, setCategories] = useState<ApiCategory[]>([]);
   const [catLoading, setCatLoading] = useState(false);
-
-  useEffect(() => {
-    if (!categorySlug && !subCategorySlug) return;
-
-    const next = new URLSearchParams(searchParams);
-
-    if (categorySlug) next.set("cat", categorySlug);
-    else next.delete("cat");
-
-    if (subCategorySlug) next.set("sub", subCategorySlug);
-    else next.delete("sub");
-
-    setSearchParams(next, { replace: true });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [categorySlug, subCategorySlug]);
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -204,9 +194,34 @@ const Catalog = () => {
     return map;
   }, [categories, parents]);
 
-  const selectedParent = parents.find((p) => p.slug === filterCategorySlug) || null;
-  const selectedChild =
-    childrenMap.get(filterCategorySlug || "")?.find((c) => c.slug === filterSubSlug) || null;
+  const selectedParent = useMemo(() => {
+    if (!filterCategorySlug) return null;
+    const catNorm = norm(filterCategorySlug).replace(/-/g, " ");
+    return (
+      parents.find(
+        (p) =>
+          norm(p.slug) === norm(filterCategorySlug) ||
+          norm(p.name) === catNorm ||
+          norm(p.slug).replace(/-/g, " ") === catNorm ||
+          norm(p.name).replace(/-/g, " ") === catNorm
+      ) || null
+    );
+  }, [parents, filterCategorySlug]);
+
+  const selectedChild = useMemo(() => {
+    if (!filterSubSlug || !selectedParent) return null;
+    const children = childrenMap.get(selectedParent.slug) || [];
+    const subNorm = norm(filterSubSlug).replace(/-/g, " ");
+    return (
+      children.find(
+        (c) =>
+          norm(c.slug) === norm(filterSubSlug) ||
+          norm(c.name) === subNorm ||
+          norm(c.slug).replace(/-/g, " ") === subNorm ||
+          norm(c.name).replace(/-/g, " ") === subNorm
+      ) || null
+    );
+  }, [childrenMap, selectedParent, filterSubSlug]);
 
   const buildApiUrl = () => {
     const url = new URL(`${API_BASE}/products`);
@@ -273,12 +288,15 @@ const Catalog = () => {
   const filteredProducts = useMemo(() => {
     let result = [...products];
 
-    if (activePriceMin && activePriceMax) {
-      const min = Number(activePriceMin);
-      const max = Number(activePriceMax);
+    const min = activePriceMin !== null && activePriceMin !== "" ? Number(activePriceMin) : null;
+    const max = activePriceMax !== null && activePriceMax !== "" ? Number(activePriceMax) : null;
+
+    if (min !== null || max !== null) {
       result = result.filter((p) => {
         const price = pickNewPrice(p);
-        return price >= min && price <= max;
+        const matchesMin = min === null || isNaN(min) || price >= min;
+        const matchesMax = max === null || isNaN(max) || price <= max;
+        return matchesMin && matchesMax;
       });
     }
 
@@ -317,21 +335,23 @@ const Catalog = () => {
   };
 
   const clearFilters = () => {
-    const newParams = new URLSearchParams();
-    if (searchQuery) newParams.set("search", searchQuery);
-    setSearchParams(newParams, { replace: true });
+    navigate("/catalog");
   };
 
   const handleCategoryChange = (parentSlug: string | null, childSlug: string | null) => {
-    const newParams = new URLSearchParams(searchParams);
+    const params = new URLSearchParams();
+    if (activePriceMin) params.set("priceMin", activePriceMin);
+    if (activePriceMax) params.set("priceMax", activePriceMax);
+    if (searchQuery) params.set("search", searchQuery);
+    const queryString = params.toString() ? `?${params.toString()}` : "";
 
-    if (parentSlug) newParams.set("cat", parentSlug);
-    else newParams.delete("cat");
-
-    if (childSlug) newParams.set("sub", childSlug);
-    else newParams.delete("sub");
-
-    setSearchParams(newParams, { replace: true });
+    if (parentSlug && childSlug) {
+      navigate(`/catalog/${parentSlug}/${childSlug}${queryString}`);
+    } else if (parentSlug) {
+      navigate(`/catalog/${parentSlug}${queryString}`);
+    } else {
+      navigate(`/catalog${queryString}`);
+    }
   };
 
   const formatPrice = (price: number) =>
@@ -341,7 +361,7 @@ const Catalog = () => {
       maximumFractionDigits: 0,
     }).format(price);
 
-  const hasActiveFilters = !!filterCategorySlug || !!filterSubSlug || !!activePriceMin;
+  const hasActiveFilters = !!filterCategorySlug || !!filterSubSlug || activePriceMin !== null || activePriceMax !== null;
 
   const renderProductCard = (product: Product, index: number) => {
     const id = product._id;
@@ -358,20 +378,18 @@ const Catalog = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: index * 0.03 }}
-        className={`group relative ${
-          viewMode === "list"
-            ? "flex flex-col sm:flex-row gap-4 sm:gap-6 bg-black/40 backdrop-blur-sm rounded-xl border border-white/20 p-4"
-            : "bg-black/40 backdrop-blur-sm rounded-xl border border-white/20 p-4"
-        }`}
+        className={`group relative ${viewMode === "list"
+          ? "flex flex-col sm:flex-row gap-4 sm:gap-6 bg-black/40 backdrop-blur-sm rounded-xl border border-white/20 p-4"
+          : "bg-black/40 backdrop-blur-sm rounded-xl border border-white/20 p-4"
+          }`}
       >
         <div className="relative">
           <Link
             to={`/product/${id}`}
-            className={`relative overflow-hidden rounded-lg bg-black/20 block ${
-              viewMode === "list"
-                ? "w-full sm:w-48 h-56 sm:h-48 sm:flex-shrink-0"
-                : "aspect-square"
-            }`}
+            className={`relative overflow-hidden rounded-lg bg-black/20 block ${viewMode === "list"
+              ? "w-full sm:w-48 h-56 sm:h-48 sm:flex-shrink-0"
+              : "aspect-square"
+              }`}
           >
             {img ? (
               <img
@@ -404,11 +422,10 @@ const Catalog = () => {
                 type: product.type || "Luxury",
               } as any);
             }}
-            className={`absolute top-3 right-3 w-9 h-9 rounded-full flex items-center justify-center transition-all z-10 ${
-              isFavorite(id as any)
-                ? "bg-[#d4af37] text-[#7a5a1e]"
-                : "bg-black/60 backdrop-blur-sm text-white hover:bg-[#d4af37] hover:text-[#7a5a1e]"
-            }`}
+            className={`absolute top-3 right-3 w-9 h-9 rounded-full flex items-center justify-center transition-all z-10 ${isFavorite(id as any)
+              ? "bg-[#d4af37] text-[#7a5a1e]"
+              : "bg-black/60 backdrop-blur-sm text-white hover:bg-[#d4af37] hover:text-[#7a5a1e]"
+              }`}
           >
             <Heart className={`w-4 h-4 ${isFavorite(id as any) ? "fill-current" : ""}`} />
           </button>
@@ -485,11 +502,10 @@ const Catalog = () => {
 
         <div className="flex gap-6 lg:gap-8">
           <aside
-            className={`${
-              showFilters
-                ? "fixed inset-0 z-50 bg-black/90 backdrop-blur-xl p-4 sm:p-6 overflow-y-auto"
-                : "hidden"
-            } lg:block lg:relative lg:w-64 lg:flex-shrink-0`}
+            className={`${showFilters
+              ? "fixed inset-0 z-50 bg-black/90 backdrop-blur-xl p-4 sm:p-6 overflow-y-auto"
+              : "hidden"
+              } lg:block lg:relative lg:w-64 lg:flex-shrink-0`}
           >
             <div className="flex items-center justify-between mb-6 lg:hidden">
               <h2 className="text-xl font-heading font-bold text-white">Filters</h2>
@@ -522,32 +538,50 @@ const Catalog = () => {
                       active={!filterCategorySlug}
                       onClick={() => handleCategoryChange(null, null)}
                     />
-                    {parents.map((cat) => (
-                      <div key={getCatId(cat) || cat.slug}>
-                        <FilterItem
-                          label={cat.name}
-                          active={filterCategorySlug === cat.slug && !selectedChild}
-                          onClick={() => handleCategoryChange(cat.slug, null)}
-                        />
-                        {filterCategorySlug === cat.slug && childrenMap.get(cat.slug)?.length ? (
-                          <div className="ml-4 mt-1 space-y-1">
-                            <FilterItem
-                              label={`All ${cat.name}`}
-                              active={!selectedChild}
-                              onClick={() => handleCategoryChange(cat.slug, null)}
-                            />
-                            {childrenMap.get(cat.slug)!.map((child) => (
+                    {parents.map((cat) => {
+                      const isParentActive =
+                        Boolean(filterCategorySlug) &&
+                        (norm(filterCategorySlug) === norm(cat.slug) ||
+                          norm(filterCategorySlug).replace(/-/g, " ") === norm(cat.name) ||
+                          selectedParent?.slug === cat.slug);
+
+                      const children = childrenMap.get(cat.slug) || [];
+
+                      return (
+                        <div key={getCatId(cat) || cat.slug}>
+                          <FilterItem
+                            label={cat.name}
+                            active={isParentActive && !selectedChild}
+                            onClick={() => handleCategoryChange(cat.slug, null)}
+                          />
+                          {isParentActive && children.length > 0 ? (
+                            <div className="ml-4 mt-1 space-y-1 border-l border-white/20 pl-3">
                               <FilterItem
-                                key={getCatId(child) || child.slug}
-                                label={child.name}
-                                active={selectedChild?.slug === child.slug}
-                                onClick={() => handleCategoryChange(cat.slug, child.slug)}
+                                label={`All ${cat.name}`}
+                                active={!selectedChild}
+                                onClick={() => handleCategoryChange(cat.slug, null)}
                               />
-                            ))}
-                          </div>
-                        ) : null}
-                      </div>
-                    ))}
+                              {children.map((child) => {
+                                const isChildActive =
+                                  Boolean(filterSubSlug) &&
+                                  (norm(filterSubSlug) === norm(child.slug) ||
+                                    norm(filterSubSlug).replace(/-/g, " ") === norm(child.name) ||
+                                    selectedChild?.slug === child.slug);
+
+                                return (
+                                  <FilterItem
+                                    key={getCatId(child) || child.slug}
+                                    label={child.name}
+                                    active={isChildActive}
+                                    onClick={() => handleCategoryChange(cat.slug, child.slug)}
+                                  />
+                                );
+                              })}
+                            </div>
+                          ) : null}
+                        </div>
+                      );
+                    })}
                   </>
                 )}
               </FilterSection>
@@ -628,9 +662,8 @@ const Catalog = () => {
               </div>
             ) : (
               <div
-                className={`grid gap-4 sm:gap-6 ${
-                  viewMode === "grid" ? "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3" : "grid-cols-1"
-                }`}
+                className={`grid gap-4 sm:gap-6 ${viewMode === "grid" ? "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3" : "grid-cols-1"
+                  }`}
               >
                 {filteredProducts.map((product, index) => renderProductCard(product, index))}
               </div>
@@ -674,9 +707,8 @@ const FilterItem = ({
 }) => (
   <button
     onClick={onClick}
-    className={`flex items-center gap-2 w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
-      active ? "bg-[#d4af37]/20 text-[#d4af37]" : "text-white/70 hover:bg-white/10 hover:text-white"
-    }`}
+    className={`flex items-center gap-2 w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${active ? "bg-[#d4af37]/20 text-[#d4af37]" : "text-white/70 hover:bg-white/10 hover:text-white"
+      }`}
   >
     {icon}
     <span>{label}</span>
