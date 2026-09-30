@@ -83,12 +83,10 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
             <ul className="space-y-3">
               {[
                 { name: "About Us", path: "/about" },
+                { name: "Contact Us", path: "/contact" },
                 { name: "FAQs", path: "/faqs" },
-                { name: "Delivery & Assembly", path: "/delivery-policy" },
-                { name: "Guarantee / Warranty", path: "/warranty-refund" },
-                { name: "Privacy Policy", path: "/privacy-policy" },
-                { name: "Replacement Policy", path: "/replacement-policy" },
                 { name: "Experience Centers & Showrooms", path: "/contact" },
+                { name: "Privacy Policy", path: "/privacy-policy" },
               ].map((link) => (
                 <li key={link.name}>
                   <Link
@@ -139,20 +137,17 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
             </p>
 
             <div className="flex flex-wrap items-center justify-center gap-4 md:gap-6">
-              <Link to="/privacy-policy" className="text-sm text-white/70 hover:text-white">
-                Privacy Policy
-              </Link>
-              <Link to="/delivery-policy" className="text-sm text-white/70 hover:text-white">
-                Delivery Policy
-              </Link>
-              <Link to="/warranty-refund" className="text-sm text-white/70 hover:text-white">
-                Warranty & Refund
-              </Link>
               <Link to="/about" className="text-sm text-white/70 hover:text-white">
                 About
               </Link>
-              <Link to="/support" className="text-sm text-white/70 hover:text-white">
-                Support
+              <Link to="/contact" className="text-sm text-white/70 hover:text-white">
+                Contact Us
+              </Link>
+              <Link to="/faqs" className="text-sm text-white/70 hover:text-white">
+                FAQs
+              </Link>
+              <Link to="/privacy-policy" className="text-sm text-white/70 hover:text-white">
+                Privacy Policy
               </Link>
             </div>
           </div>

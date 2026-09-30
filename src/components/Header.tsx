@@ -11,7 +11,7 @@ import MegaMenu from "./MegaMenu";
 import MobileDrawer from "./MobileDrawer";
 import LocationPanel from "./LocationPanel";
 import CartPanel from "./CartPanel";
-import logo from "../../public/JSGALORE.png";
+const logo = "/JSGALORE.png";
 
 type MenuKey = "catalog" | "concepts" | "rooms";
 

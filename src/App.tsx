@@ -113,7 +113,11 @@ const App = () => (
                 <Route path="/replacement-policy" element={<ReplacementPolicy />} />
                 <Route path="/shipping-info" element={<ShippingInfo />} />
                 <Route path="/faq" element={<FAQ />} />
+                <Route path="/faqs" element={<FAQ />} />
                 <Route path="/contact" element={<Contact />} />
+                <Route path="/contact-us" element={<Contact />} />
+                <Route path="/support" element={<Contact />} />
+                <Route path="/shipping" element={<ShippingInfo />} />
 
                 {/* 404 catch‑all */}
                 <Route path="*" element={<NotFound />} />

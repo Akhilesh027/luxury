@@ -9,7 +9,7 @@ import { useCart } from "@/contexts/CartContext";
 import { toast } from "@/hooks/use-toast";
 import { Check } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import logo from '../../public/JSGALORE.png'
+const logo = '/JSGALORE.png';
 
 const AuthPage = () => {
   const [activeTab, setActiveTab] = useState<"login" | "register">("login");
